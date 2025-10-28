@@ -12,7 +12,7 @@ class Node:
     id: str
     x: float
     y: float
-    type: str  # 'pickup', 'dropoff', 'charge', 'fuel', etc.
+    type: str  # "recolha de passageiros", "estação de recarga", "posto de abastecimento", etc.
 
 @dataclass
 class Edge:
