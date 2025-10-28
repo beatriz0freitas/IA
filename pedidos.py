@@ -4,14 +4,14 @@ Contém origem, destino, número de passageiros, prioridade e preferência ambie
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal
 
 @dataclass
 class Request:
     id: str
-    origin: str
-    destination: str
+    origin_position: str
+    destination_position: str
     passengers: int
-    time_request: int        # instante em minutos na simulação
-    priority: int = 0        # maior valor = mais urgente
-    pref_environmental: Optional[str] = None  # 'electric' ou None
+    schedule_request: int        # instante em minutos na simulação
+    priority: int = 0            # maior valor = mais urgente
+    environmental_preference: Literal["eletrico","combustao"]
