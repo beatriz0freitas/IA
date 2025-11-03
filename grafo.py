@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Dict, List
 import networkx as nx
 import matplotlib.pyplot as plt
+from collections import deque
 
 # um Node poderia ser tanto recolha de passageiros como posto de abastecimento nao?
 @dataclass
@@ -42,15 +43,68 @@ class Graph:
         self.adj[origin].append(Edge(dest, distance_km, travel_time_min))
         self.adj[dest].append(Edge(origin, distance_km, travel_time_min))
 
+    """Devolve a aresta entre dois nodos, se existir."""
+    def get_edge(self, src: str, dest: str) -> Edge:
+        for e in self.adj[src]:
+            if e.to_node == dest:
+                return e
+        raise ValueError(f"No edge from {src} to {dest}")
+
     """Retorna os vizinhos de um nó."""
     def neighbors(self, node_id: str) -> List[Edge]:
         return self.adj.get(node_id, [])
 
+    """Procura BFS."""
+    def bfs(self, start_id: str, goal_id: str) -> List[str]:
+        if start_id not in self.nodes or goal_id not in self.nodes:
+            raise ValueError("Nó inicial ou final não existe no grafo.")
 
+        visited = set()
+        queue = deque([(start_id, [start_id])])  # (nó atual, caminho até aqui)
+
+        while queue:
+            current, path = queue.popleft()
+
+            if current == goal_id:
+                # omitimos o nó inicial antes de retornar
+                return path[1:]
+
+            visited.add(current)
+
+            for edge in self.neighbors(current):
+                neighbor = edge.to_node
+                if neighbor not in visited:
+                    queue.append((neighbor, path + [neighbor]))
+                    visited.add(neighbor)
+
+        return []  # nenhum caminho encontrado
+    
+    """Procura DFS."""
+    def dfs(self, start_id: str, goal_id: str) -> List[str]:
+        if start_id not in self.nodes or goal_id not in self.nodes:
+            raise ValueError("Nó inicial ou final não existe no grafo.")
+
+        visited = set()
+        stack = [(start_id, [start_id])]  # (current_node, path_so_far)
+
+        while stack:
+            current, path = stack.pop()
+            if current == goal_id:
+                return path
+
+            if current not in visited:
+                visited.add(current)
+                for edge in self.neighbors(current):
+                    neighbor = edge.to_node
+                    if neighbor not in visited:
+                        stack.append((neighbor, path + [neighbor]))
+
+        return []
+
+    # usar desenha("kk", False/True para mostrar tempos, escala à escolha)
+    # o "kk" faz o grafico em escala com as distancias definidas
     def desenha(self, mode="coords", show_time=False, scale=1.0):
         """
-        Draw graph with different layout strategies.
-
         Args:
             mode: "coords" -> place nodes at (node.x, node.y) (visual edge length = geometric distance)
                 "kk"     -> Kamada-Kawai layout using edge distance_km as target lengths

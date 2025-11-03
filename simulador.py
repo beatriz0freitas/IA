@@ -1,11 +1,14 @@
 
 
 from grafo import Graph, Node, Edge
-from veiculos import Vehicle
+from veiculos import Vehicle, get_frota
 from pedidos import Request
+from collections import deque
 
+# incorporar isto tudo numa classe que atue como uma especie de facade suponho
+# TODO's
+# -> fazer taxi passar do ponto de recolha para o destino (neste momento so chega ao primeiro)
 
-# até podemos passar como argumentos mapas de teste diferentes ig
 def constroi_grafo():
     g = Graph()
 
@@ -60,6 +63,45 @@ def constroi_grafo():
 def main():
     g = constroi_grafo()
     g.desenha(mode="kk", show_time=False, scale=2.0)
+
+    # dicionário de veiculos, tem um em K neste momento
+    # algumas operações envolvem verificar linearmente pela frota se o taxi esta disponivel ou nao
+    # guardar dois dicionarios, um para ocupado e outro para disponivel e mover de acordo com ocupação?
+    frota = get_frota()
+    
+    # isto num ciclo de ticks que a cada tick tem uma chance de alterar condições
+    # ou gerar requests
+
+    request_queue = deque()
+    req = Request(1, "A", "B", 2, 0, 'combustao')
+
+    # colocar na queue ordenado por prioridades (TODO ordenado)
+    request_queue.append(req)
+
+    # assign first request in queue to best taxi
+    curRequest = request_queue.pop()
+    # (TODO) curTaxi = frota.get( curRequest.get_best_taxi(frota) ) returns id do melhor taxi para o pedido
+    curTaxi = frota.get(1)
+
+    # isto precisa de definir um path ate a recolha e depois ate ao destino
+    # definir procuras com "checkpoint"? ou dois atributos path?
+    curTaxi.set_path( g.bfs(curTaxi.position, curRequest.origin_position) )
+    print(curTaxi.position)
+
+    tickNum = 20
+    for i in range(tickNum):
+        for id in frota:
+            taxi = frota[id]
+            if taxi.path: # se está a tratar de um pedido
+                print("Position: " + taxi.position)
+                print(taxi.path)
+                nextNodeId = taxi.get_next_path_node()
+                taxi.move( g.get_edge(taxi.position, nextNodeId).distance_km, nextNodeId )
+
+
+    # cada tick de tempo pode passar move a todos os taxis e, se nao tiverem path, nao mexem
+    # se houver um update no ambiente, verificar reroutes melhores se tiver path e so depois move
+    # check_reroutes(frota)
 
 
 
