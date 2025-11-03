@@ -8,6 +8,8 @@ from collections import deque
 # incorporar isto tudo numa classe que atue como uma especie de facade suponho
 # TODO's
 # -> fazer taxi passar do ponto de recolha para o destino (neste momento so chega ao primeiro)
+# -> limpar tudo isto
+# -> meter estrutura para requests, e preciso para metricas
 
 def constroi_grafo():
     g = Graph()
