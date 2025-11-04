@@ -6,15 +6,16 @@ Funções auxiliares comuns a vários algoritmos:
 """
 
 import math
-from models.graph import Node
+from models.graph import No
 
-"""Calcula a distância euclidiana (em km) entre dois nós."""
-def euclidean_distance(a: Node, b: Node) -> float:
-    return math.hypot(a.x - b.x, a.y - b.y)
+# Calcula a distância euclidiana (em km) entre dois nós.
+def dist_euclidiana(no_a: No, no_b: No) -> float:
+    return math.hypot(no_a.x - no_b.x, no_a.y - no_b.y)
 
-""" Estima o tempo (em minutos) entre dois nós com base na distância euclidiana. """
-def heuristic_time(a: Node, b: Node, avg_speed_kmh: float = 40.0) -> float:
-    dist_km = euclidean_distance(a, b)
-    if avg_speed_kmh <= 0:
-        avg_speed_kmh = 40.0
-    return (dist_km / avg_speed_kmh) * 60.0  # minutos
+# Estima o tempo (em minutos) entre dois nós com base na distância euclidiana.
+def tempo_heuristica(no_a: No, no_b: No,
+                     velocidadeMedia_kmh: float = 40.0) -> float:
+    dist_km = dist_euclidiana(no_a, no_b)
+    if velocidadeMedia_kmh <= 0:
+        velocidadeMedia_kmh = 40.0
+    return (dist_km / velocidadeMedia_kmh) * 60.0  # minutos

@@ -7,10 +7,7 @@ import heapq
 from typing import Dict, List, Tuple, Optional
 from models.graph import Graph
 
-"""
-Calcula o caminho de menor custo (tempo total em minutos) entre dois nós.
-Retorna: (custo_total_min, caminho)
-"""
+# Calcula o caminho de menor custo (tempo total em minutos) entre dois nós. Retorna: (custo_total_min, caminho)
 def uniform_cost_search(graph: Graph, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
     if start_id == goal_id:
         return 0.0, [start_id]
