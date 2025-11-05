@@ -6,7 +6,7 @@ Funções auxiliares comuns a vários algoritmos:
 """
 
 import math
-from models.graph import Node
+from grafo import Node
 
 """Calcula a distância euclidiana (em km) entre dois nós."""
 def euclidean_distance(a: Node, b: Node) -> float:

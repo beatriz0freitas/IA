@@ -17,19 +17,17 @@ def get_frota():
 @dataclass
 class Vehicle:
     id: str
-    position: str                               # localizacao atual
+    position: str                 # localizacao atual
     is_electric: bool
-    autonomy_km: float                          # autonomia atual (km restantes)
-    autonomy_max_km: float                      # autonomia máxima
+    autonomy_km: float            # autonomia atual (km restantes)
+    autonomy_max_km: float        # autonomia máxima
     passenger_capacity: int
-    cost_per_km: float                          # custo operacional (energia ou combustível)
-    available: bool = True                      # disponibilidade do veículo
-    path: Deque[str] = field(default_factory=deque)  # rota a tomar pelo táxi
+    cost_per_km: float            # custo operacional (energia ou combustível)
+    available: bool = True        # disponibilidade do veículo
+    path: Deque[str] = field(default_factory=deque)             # rota a tomar pelo táxi (tanto para abastecer como para chegar à recolha)
+    path_of_request: Deque[str] = field(default_factory=deque)  # rota a tomar para o pedido TODO(?)
 
-    """Atribui o id de um pedido ao táxi."""
-    def assign_request(self, id: str):
-        self.assigned_request = id
-        return
+    # fazer uma procura com checkpoint para recolha + destino num só
 
     """Verifica se o veículo pode percorrer determinada distância."""
     def can_reach(self, distance_km: float) -> bool:
@@ -42,6 +40,7 @@ class Vehicle:
             self.available = True
         return nextNodeId
 
+    # era fixe que isto tratasse do get_next do path tambem, mas precisava de ter a info do Node
     """Move-se para o próximo Node na rota definida."""
     def move(self, distance_km: float, nodeName: str):
         if self.can_reach(distance_km):

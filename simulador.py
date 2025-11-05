@@ -1,110 +1,133 @@
 
-
+from dataclasses import dataclass, field
+import heapq
 from grafo import Graph, Node, Edge
 from veiculos import Vehicle, get_frota
 from pedidos import Request
-from collections import deque
+from uteis import euclidean_distance
+from math import inf as infinito
+
 
 # incorporar isto tudo numa classe que atue como uma especie de facade suponho
 # TODO's
 # -> fazer taxi passar do ponto de recolha para o destino (neste momento so chega ao primeiro)
 # -> limpar tudo isto
 # -> meter estrutura para requests, e preciso para metricas
+# -> guardar requests todos numa estrutura, precisas para métricas depois
+# -> ter em conta reabastecimentos
 
-def constroi_grafo():
-    g = Graph()
+# classe organizadora da frota(?), mais fácil que usar apenas uma lista suponho...?
+# usava mais memoria mas escusava percorrer a frota inteira
+# TODO (noutro modulo claro)
+@dataclass
+class Frota:
+    frotaOcupada: list
+    frotaLivre: list
+    frotaCombustao: list
 
-    coords = {
-        "A": (0, 1),   
-        "B": (1, 2),  
-        "C": (1, 0),    
-        "D": (2, 1),   
-        "E": (3, 2),   
-        "F": (3, 0), 
-        "G": (4, 1),
-        "H": (5, 2),
-        "I": (5, 0),
-        "J": (6, 1),
+@dataclass
+class Simulation:
+    # tempo (em minutos? abstrato tipo ticks?)
+    time: int = 0
+    # dicionário de táxis, podia ser classe a parte que organiza por categoria (como disponiveis) para procura mais rapida
+    frota = get_frota() # delegar operações nisto para uma classe à parte(?)
+    # mapa de teste
+    grafo = Graph().constroi_grafo()
+    # heap de requests que deve ser ordenada por prioridade (heapify em add_request)
+    # garante menor valor a frente, mas nao é ordenada...
+    request_queue = list()
 
-        "K": (4, 3),
-        "L": (2, 3)
-    }
+    # lista de pedidos (para métricas)
+    # indexes ordenados cronologicamente, evita ser dicionario
+    request_registry = list()
 
-    # Adicionar nodos, por agora todas as zonas são iguais
-    for nid, (x, y) in coords.items():
-        g.add_node(Node(id=nid, x=x, y=y, type="zona"))
+    # pode-se passar o grafo como argumento até
+    def run_Simulation(self):
+        # self.grafo.desenha(mode="kk", show_time=False, scale=2.0)
 
-    # (src, dest, distance, min_time)
-    g.add_edge("A", "B", 1.0, 2.5)
-    g.add_edge("A", "C", 1.2, 3.0)
-    g.add_edge("A", "D", 2.0, 4.2)
-    g.add_edge("B", "D", 1.5, 3.5)
-    g.add_edge("B", "E", 2.0, 4.4)
-    g.add_edge("C", "D", 1.8, 4.0)
-    g.add_edge("C", "F", 2.2, 4.8)
-    g.add_edge("D", "E", 1.3, 3.0)
-    g.add_edge("D", "F", 1.6, 3.6)
-    g.add_edge("D", "G", 2.0, 4.3)
-    g.add_edge("E", "H", 2.2, 5.0)
-    g.add_edge("E", "G", 1.5, 3.3)
-    g.add_edge("F", "G", 1.4, 3.2)
-    g.add_edge("F", "I", 2.3, 5.0)
-    g.add_edge("G", "H", 1.8, 4.1)
-    g.add_edge("G", "I", 2.0, 4.4)
-    g.add_edge("G", "J", 2.5, 5.5)
-    g.add_edge("H", "J", 2.0, 4.2)
-    g.add_edge("I", "J", 2.2, 4.8)
+        # TODO definir lista para testes, scheduled e depois maybe pedidos aleatorios
+        self.addRequest(1, "A", "B", 2, 0, 'combustao', 0)
 
-    g.add_edge("H", "K", 1.5, 3.3)
-    g.add_edge("B", "L", 1.8, 3.8)
-    g.add_edge("E", "L", 1.6, 3.5)
+        # TODO
+        cancel = ""
+        while cancel == "":
+            print("Tick: " + str(self.time))
+            if self.request_queue:
+                current_request = self.get_next_request()
+                self.handle_request(current_request)
 
-    return g
+            for id, taxi in self.frota.items():
+                print("Position: " + taxi.position)
+                if taxi.path:
+                    print("Path: " + str(taxi.path))
+                    # acoplar numa função move_taxi ig?
+                    # nextNodeId = taxi.get_next_path_node()
+                    # taxi.move( self.grafo.get_edge(taxi.position, nextNodeId).distance_km, nextNodeId )
+                    self.move_taxi(taxi)
+    
+            self.time += 1
+            print("Press Enter to continue the simulation. Any Key to stop.")
+            cancel = input()
 
+    
+    # requests precisam de id sequer...?
+    def addRequest(self, id: int, 
+                   origin: str, destination: str, 
+                   passengers: int, schedule_request: int,
+                   environmental, priority: int):
+        req = Request(id, origin, destination, passengers, schedule_request, environmental, priority, "")
+        self.request_queue.append(req)
+        heapq.heapify(self.request_queue)
+        self.request_registry.append(req)
+
+    def get_next_request(self):
+        return heapq.heappop(self.request_queue)
+    
+    # TODO como deve ser
+    #       (isto nao pertence aqui pois nao...?)
+    #      -> antes passar frota como argumento e passar o método para request? mas preciso das infos do nodo para distancias
+    # retorna id do melhor taxi para o pedido (por agora o mais próximo do pickup)
+    def get_best_taxi(self, request):
+        bestTaxi_id = None
+        bestDistance = infinito
+        for id, taxi in self.frota.items():
+            distance = euclidean_distance(self.grafo.nodes.get(taxi.position),
+                                          self.grafo.nodes.get(request.origin_position))
+            if taxi.available and distance < bestDistance:
+                bestTaxi_id = id
+                bestDistance = distance
+
+        return bestTaxi_id
+    
+    # descobre a melhor rota para um dado request
+    # TODO isto fode nos reroutes se ele ja tiver chegado à recolha, tem de se diferenciar isso
+    #       ou com dois atributos path que diferenciem ou um bool qualquer
+    def get_route_for_request(self, request: Request):
+        taxi = self.frota.get(request.assigned_taxi_id)
+        return self.grafo.bfs_com_checkpoint(taxi.position, request.origin_position, request.destination_position)
+
+    def set_taxi_route(self, taxi_id, route):
+        taxi = self.frota.get(taxi_id)
+        taxi.set_path(route)
+
+    # usa as funções acima para iniciar o request, dando setup a um taxi com rota
+    def handle_request(self, request: Request):
+        taxi_id = self.get_best_taxi(request)
+        request.assign_taxi(taxi_id)
+        route = self.get_route_for_request(request)
+        self.set_taxi_route(taxi_id, route)
+
+    def move_taxi(self, taxi):
+        nextNodeId = taxi.get_next_path_node()
+        taxi.move( self.grafo.get_edge(taxi.position, nextNodeId).distance_km, nextNodeId )
 
 def main():
-    g = constroi_grafo()
-    g.desenha(mode="kk", show_time=False, scale=2.0)
-
-    # dicionário de veiculos, tem um em K neste momento
-    # algumas operações envolvem verificar linearmente pela frota se o taxi esta disponivel ou nao
-    # guardar dois dicionarios, um para ocupado e outro para disponivel e mover de acordo com ocupação?
-    frota = get_frota()
-    
-    # isto num ciclo de ticks que a cada tick tem uma chance de alterar condições
-    # ou gerar requests
-
-    request_queue = deque()
-    req = Request(1, "A", "B", 2, 0, 'combustao')
-
-    # colocar na queue ordenado por prioridades (TODO ordenado)
-    request_queue.append(req)
-
-    # assign first request in queue to best taxi
-    curRequest = request_queue.pop()
-    # (TODO) curTaxi = frota.get( curRequest.get_best_taxi(frota) ) returns id do melhor taxi para o pedido
-    curTaxi = frota.get(1)
-
-    # isto precisa de definir um path ate a recolha e depois ate ao destino
-    # definir procuras com "checkpoint"? ou dois atributos path?
-    curTaxi.set_path( g.bfs(curTaxi.position, curRequest.origin_position) )
-    print(curTaxi.position)
-
-    tickNum = 20
-    for i in range(tickNum):
-        for id in frota:
-            taxi = frota[id]
-            if taxi.path: # se está a tratar de um pedido
-                print("Position: " + taxi.position)
-                print(taxi.path)
-                nextNodeId = taxi.get_next_path_node()
-                taxi.move( g.get_edge(taxi.position, nextNodeId).distance_km, nextNodeId )
-
+    simulador = Simulation()
+    simulador.run_Simulation()
 
     # cada tick de tempo pode passar move a todos os taxis e, se nao tiverem path, nao mexem
     # se houver um update no ambiente, verificar reroutes melhores se tiver path e so depois move
     # check_reroutes(frota)
-
 
 
 if __name__ == "__main__":

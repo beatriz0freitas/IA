@@ -23,7 +23,8 @@ class Edge:
     to_node: str
     distance_km: float
     travel_time_min: float
-    # congestion: float # multiplier do tempo de travessia 0-1
+    # congestion: float -> multiplier do tempo de travessia 0-1
+    # blocked: bool -> determina se estrada está bloqueada (para construção por exemplo)
 
 class Graph:
     def __init__(self):
@@ -79,6 +80,18 @@ class Graph:
 
         return []  # nenhum caminho encontrado
     
+    """Procura BFS com checkpoint."""
+    def bfs_com_checkpoint(self, start_id: str, checkpoint_id: str, goal_id: str) -> List[str]:
+        if start_id not in self.nodes or goal_id not in self.nodes or checkpoint_id not in self.nodes:
+            raise ValueError("Nó inicial, final ou checkpoint não existe no grafo.")
+        
+        path1 = self.bfs(start_id, checkpoint_id)
+        path2 = self.bfs(checkpoint_id, goal_id)
+
+        full_path = path1 + path2[1:]
+        return full_path
+
+    
     """Procura DFS."""
     def dfs(self, start_id: str, goal_id: str) -> List[str]:
         if start_id not in self.nodes or goal_id not in self.nodes:
@@ -100,6 +113,56 @@ class Graph:
                         stack.append((neighbor, path + [neighbor]))
 
         return []
+    
+    def constroi_grafo(self):
+        g = Graph()
+
+        coords = {
+            "A": (0, 1),   
+            "B": (1, 2),  
+            "C": (1, 0),    
+            "D": (2, 1),   
+            "E": (3, 2),   
+            "F": (3, 0), 
+            "G": (4, 1),
+            "H": (5, 2),
+            "I": (5, 0),
+            "J": (6, 1),
+
+            "K": (4, 3),
+            "L": (2, 3)
+        }
+
+        # Adicionar nodos, por agora todas as zonas são iguais
+        for nid, (x, y) in coords.items():
+            g.add_node(Node(id=nid, x=x, y=y, type="zona"))
+
+        # (src, dest, distance, min_time)
+        g.add_edge("A", "B", 1.0, 2.5)
+        g.add_edge("A", "C", 1.2, 3.0)
+        g.add_edge("A", "D", 2.0, 4.2)
+        g.add_edge("B", "D", 1.5, 3.5)
+        g.add_edge("B", "E", 2.0, 4.4)
+        g.add_edge("C", "D", 1.8, 4.0)
+        g.add_edge("C", "F", 2.2, 4.8)
+        g.add_edge("D", "E", 1.3, 3.0)
+        g.add_edge("D", "F", 1.6, 3.6)
+        g.add_edge("D", "G", 2.0, 4.3)
+        g.add_edge("E", "H", 2.2, 5.0)
+        g.add_edge("E", "G", 1.5, 3.3)
+        g.add_edge("F", "G", 1.4, 3.2)
+        g.add_edge("F", "I", 2.3, 5.0)
+        g.add_edge("G", "H", 1.8, 4.1)
+        g.add_edge("G", "I", 2.0, 4.4)
+        g.add_edge("G", "J", 2.5, 5.5)
+        g.add_edge("H", "J", 2.0, 4.2)
+        g.add_edge("I", "J", 2.2, 4.8)
+
+        g.add_edge("H", "K", 1.5, 3.3)
+        g.add_edge("B", "L", 1.8, 3.8)
+        g.add_edge("E", "L", 1.6, 3.5)
+
+        return g
 
     # usar desenha("kk", False/True para mostrar tempos, escala à escolha)
     # o "kk" faz o grafico em escala com as distancias definidas
