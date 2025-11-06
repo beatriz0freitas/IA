@@ -26,18 +26,16 @@ class Aresta:
     distancia_km: float
     tempoViagem_min: float
 
-class Graph:
+class Grafo:
     def __init__(self):
         self.nos: Dict[str, No] = {}
         self.adjacentes: Dict[str, List[Aresta]] = {}
 
-    # Adiciona um nó ao grafo
     def adiciona_no(self, no: No):
         self.nos[no.id_no] = no
         if no.id_no not in self.adjacentes:
             self.adjacentes[no.id_no] = []
     
-    # Adiciona uma aresta bidirecional entre dois nós.
     def adiciona_aresta(self, no_origem: str, no_destino: str, 
                               distancia_km: float, tempoViagem_min: float):
         if no_origem not in self.nos or no_destino not in self.nos:
@@ -45,7 +43,6 @@ class Graph:
         self.adjacentes[no_origem].append(Aresta(no_destino, distancia_km, tempoViagem_min))
         self.adjacentes[no_destino].append(Aresta(no_origem, distancia_km, tempoViagem_min))
 
-    # Retorna os vizinhos de um nó.
     def vizinhos(self, id_no: str) -> List[Aresta]:
         return self.adjacentes.get(id_no, [])
 

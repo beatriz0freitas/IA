@@ -6,6 +6,7 @@ Contém origem, destino, número de passageiros, prioridade e preferência ambie
 from dataclasses import dataclass
 from typing import Literal
 from enum import Enum
+from typing import Optional
 
 class EstadoPedido(Enum):
     PENDENTE = "pendente"
@@ -15,7 +16,6 @@ class EstadoPedido(Enum):
     CANCELADO = "cancelado"
     REJEITADO = "rejeitado"
 
-
 @dataclass
 class Pedido:
     id_pedido: str
@@ -23,15 +23,15 @@ class Pedido:
     posicao_destino: str
     passageiros: int
     instante_pedido: int                        # instante em minutos na simulação
-    instante_atendimento: int               
-    prioridade: int = 0                         # maior valor = mais urgente
+    instante_atendimento: Optional[int] = None             
+    prioridade: int                             # maior valor = mais urgente
     pref_ambiental: Literal["eletrico","combustao"]
     estado: EstadoPedido
     veiculo_atribuido: str                      # id do veículo atribuído ao pedido
 
     # Validação automática da preferência ambiental.
     def __post_init__(self):
-        if self.pref_ambiental not in ("eletricop", "combustao"):
+        if self.pref_ambiental not in ("eletrico", "combustao"):
             raise ValueError(
                 f"Preferência ambiental inválida: {self.pref_ambiental}. "
                 "Deve ser 'eletrico' ou 'combustao'."

@@ -6,7 +6,7 @@ Funções auxiliares comuns a vários algoritmos:
 """
 
 import math
-from models.graph import No
+from modelo.grafo import No
 
 # Calcula a distância euclidiana (em km) entre dois nós.
 def dist_euclidiana(no_a: No, no_b: No) -> float:
