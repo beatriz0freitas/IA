@@ -6,6 +6,7 @@ import heapq
 from gestao.gestor_frota import GestorFrota
 from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
+from interface_taxigreen import InterfaceTaxiGreen
 
 """
 Responsável por gerir o tempo e os eventos dinâmicos da simulação.
@@ -15,12 +16,14 @@ Responsável por gerir o tempo e os eventos dinâmicos da simulação.
       - recarga automática de veículos com autonomia baixa.
 """
 class Simulador:
-    def __init__(self, gestor: GestorFrota, duracao_total: int = 120):
+    #todo: nao gosto de duracao já ter um valor fixo
+    def __init__(self, gestor: GestorFrota, duracao_total: int = 120, interface=None):
         self.gestor = gestor
         self.duracao_total = duracao_total          # em minutos
         self.tempo_atual = 0
         self.fila_pedidos = []                      # heap de (instante, prioridade, pedido)
         self.pedidos_todos = []                     # histórico (para métricas)
+        self.interface = interface
 
 
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
@@ -55,6 +58,10 @@ class Simulador:
             self.atribuir_pedidos_pendentes()
             self.mover_veiculos()
             self.verificar_recargas()
+            
+            if self.interface:
+                self.interface.atualizar()
+            
             self.tempo_atual += 1
 
         print("Simulação terminada.\n")
@@ -70,7 +77,7 @@ class Simulador:
             _, _, pedido = heapq.heappop(self.fila_pedidos)
 
             self.gestor.adicionar_pedido(pedido)
-            print(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial}→{pedido.posicao_destino})")
+            print(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial} → {pedido.posicao_destino})")
 
     def atribuir_pedidos_pendentes(self):
         pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
@@ -82,11 +89,23 @@ class Simulador:
 
     def mover_veiculos(self):
         for v in self.gestor.veiculos.values():
-            if hasattr(v, "rota")and v.estado in (EstadoVeiculo.EM_DESLOCACAO, EstadoVeiculo.A_SERVICO):
-                chegou = not v.mover_um_passo(self.gestor.grafo)
-                if chegou:
-                    v.estado = EstadoVeiculo.DISPONIVEL
-                    print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} chegou ao destino final ({v.posicao})")
+            if not v.rota:
+                continue  # sem rota atribuída
+
+            # tenta mover um passo
+            em_movimento = v.mover_um_passo(self.gestor.grafo)
+            if em_movimento:
+                no_anterior = v.rota[v.indice_rota - 1] if v.indice_rota > 0 else v.posicao
+                no_atual = v.rota[v.indice_rota]
+                distancia = self.gestor.grafo.get_aresta(no_anterior, no_atual).distancia_km
+                self.gestor.metricas.integracao_metricas(v, distancia)
+
+            if not em_movimento and v.estado == EstadoVeiculo.DISPONIVEL:
+                print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} concluiu rota {v.id_rota}.")
+
+            # atualizar a interface 
+            if hasattr(self, "interface") and self.interface is not None:
+                self.interface.atualizar()
 
     def verificar_recargas(self):
         for v in self.gestor.veiculos.values():

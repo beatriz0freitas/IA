@@ -34,7 +34,7 @@ class Veiculo(ABC):
     def pode_transportar(self, num_passageiros: int) -> bool:
         return self.capacidade_passageiros >= num_passageiros
 
-    # Move o veículo: atualiza autonomia, posição e km_total. - o tempo de deslocação e a validação de existência de aresta/rota são responsabilidade do gestor/graph.
+    # Atualiza a posição do veículo após percorrer uma distância. Também atualiza autonomia, km_total e regista debug da rota atual. 
     def move(self, distancia_km: float, no_destino: str):
         self.autonomia_km = max(0.0, self.autonomia_km - distancia_km)
         self.posicao = no_destino
@@ -51,15 +51,24 @@ class Veiculo(ABC):
     def definir_rota(self, rota: list[str]):
         self.rota = rota
         self.id_rota = 0
-    
+
+    # Move o veículo para o próximo nó na rota, se existir. Retorna False se a rota terminou, True se o movimento foi bem-sucedido.
     def mover_um_passo(self, grafo: Grafo):
         if not self.rota or self.id_rota >= len(self.rota) - 1:
             return False
         
         prox_no = self.rota[self.id_rota + 1]
         aresta = grafo.get_aresta(self.posicao, prox_no)
+        
         self.move(aresta.distancia_km, prox_no)
         self.id_rota += 1
+        self.estado = EstadoVeiculo.EM_DESLOCACAO
+
+        # chegou ao fim
+        if self.id_rota >= len(self.rota) - 1:
+            self.estado = EstadoVeiculo.DISPONIVEL
+            return False
+        
         return True
     
     #todo: verifiar todas variaveis que influenciam custp
