@@ -125,6 +125,10 @@ class GestorFrota:
         self.metricas.integracao_metricas(veiculo, dist_viagem)
 
         pedido.estado = EstadoPedido.CONCLUIDO
+        if hasattr(self, "interface") and self.interface:
+            self.interface.registar_evento(f"[t={tempo_atual}] Pedido {pedido.id_pedido} concluído pelo veículo {veiculo.id_veiculo}")
+            self.interface.remover_pedido_visual(pedido)
+            
         veiculo.estado = EstadoVeiculo.DISPONIVEL
         if pedido in self.pedidos_pendentes:
             self.pedidos_pendentes.remove(pedido)

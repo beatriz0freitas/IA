@@ -77,7 +77,9 @@ class Simulador:
             _, _, pedido = heapq.heappop(self.fila_pedidos)
 
             self.gestor.adicionar_pedido(pedido)
-            print(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial} → {pedido.posicao_destino})")
+            if hasattr(self, "interface") and self.interface:
+                self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial} → {pedido.posicao_destino})")
+                self.interface.mostrar_pedido(pedido)
 
     def atribuir_pedidos_pendentes(self):
         pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
@@ -99,6 +101,9 @@ class Simulador:
                 no_atual = v.rota[v.indice_rota]
                 distancia = self.gestor.grafo.get_aresta(no_anterior, no_atual).distancia_km
                 self.gestor.metricas.integracao_metricas(v, distancia)
+            
+            if hasattr(self, "interface") and self.interface:
+                self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} moveu-se para {v.posicao} (rota {v.id_rota})")
 
             if not em_movimento and v.estado == EstadoVeiculo.DISPONIVEL:
                 print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} concluiu rota {v.id_rota}.")

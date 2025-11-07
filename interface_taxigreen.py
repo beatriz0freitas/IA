@@ -1,3 +1,4 @@
+# interface_taxigreen.py
 import tkinter as tk
 from tkinter import ttk
 from interface_mapa import InterfaceMapa
@@ -7,111 +8,99 @@ class InterfaceTaxiGreen:
         self.simulador = simulador
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
-        self.root.geometry("1200x750")
+        self.root.geometry("1100x720")
         self.root.configure(bg="#ecf4ee")
 
         self.criar_layout_principal()
-        self.atualizar()
-
+        self.root.after(1000, self.atualizar)
 
     def criar_layout_principal(self):
-        # Layout principal — 3 zonas
-        self.frame_topo = tk.Frame(self.root, bg="#ecf4ee", height=60)
-        self.frame_topo.pack(side="top", fill="x", padx=20, pady=(10, 0))
+        # frames
+        self.frame_mapa = tk.Frame(self.root, bg="#ecf4ee")
+        self.frame_mapa.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        self.frame_centro = tk.Frame(self.root, bg="#ecf4ee")
-        self.frame_centro.pack(fill="both", expand=True, padx=20, pady=10)
+        self.frame_direita = tk.Frame(self.root, bg="#d6ede0", width=300)
+        self.frame_direita.pack(side="right", fill="y", padx=10, pady=10)
 
-        self.frame_base = tk.Frame(self.root, bg="#ecf4ee", height=70)
-        self.frame_base.pack(side="bottom", fill="x", padx=20, pady=(0, 10))
-
-        # Topo — título
-        titulo = tk.Label(
-            self.frame_topo,
-            text="Simulação TaxiGreen",
-            font=("Helvetica", 20, "bold"),
-            bg="#ecf4ee",
-            fg="#2a5c3e"
-        )
-        titulo.pack(anchor="center")
-
-        # Centro — mapa e métricas
-        self.frame_mapa = tk.Frame(self.frame_centro, bg="#e8f6ec", bd=2, relief="groove")
-        self.frame_mapa.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
-        self.frame_metricas = tk.Frame(self.frame_centro, bg="#dcefe4", width=280, bd=2, relief="ridge")
-        self.frame_metricas.pack(side="right", fill="y")
-
-
+        # mapa (InterfaceMapa)
         self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo)
-        self.mapa.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.criar_painel_metricas()
-        self.criar_painel_controlo()
+        # painel de métricas (simples)
+        tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 14, "bold")).pack(pady=(10, 5))
+        self.label_metricas = tk.Label(self.frame_direita, text="Sem dados", bg="#d6ede0", justify="left", font=("Arial", 10))
+        self.label_metricas.pack(padx=10, pady=5, anchor="w")
+
+        # painel de pedidos ativos
+        tk.Label(self.frame_direita, text="Pedidos Ativos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(12, 2), anchor="w", padx=10)
+        self.list_pedidos = tk.Listbox(self.frame_direita, height=8)
+        self.list_pedidos.pack(padx=10, pady=5, fill="x")
+
+        # log / feedback
+        tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 2), anchor="w", padx=10)
+        self.text_log = tk.Text(self.frame_direita, height=10, width=36)
+        self.text_log.pack(padx=10, pady=5)
+
+        # controlos
+        ttk.Button(self.frame_direita, text="Iniciar", command=self.executar_simulacao).pack(padx=10, pady=6, fill="x")
+        ttk.Button(self.frame_direita, text="Pausar", command=self.pausar_simulacao).pack(padx=10, pady=2, fill="x")
 
 
+    def registar_evento(self, msg: str):
+        """Escreve mensagem no log e força refresh leve."""
+        self.text_log.insert(tk.END, f"{msg}\n")
+        self.text_log.see(tk.END)
+        # atualização não bloqueante
+        try:
+            self.root.update_idletasks()
+        except tk.TclError:
+            pass
 
-    def criar_painel_metricas(self):
-        tk.Label(
-            self.frame_metricas,
-            text="Estatísticas",
-            font=("Arial", 15, "bold"),
-            bg="#dcefe4",
-            fg="#2a5c3e"
-        ).pack(pady=10)
+    def mostrar_pedido(self, pedido):
+        """Adiciona pedido à lista lateral e desenha no mapa."""
+        items = list(self.list_pedidos.get(0, tk.END))
+        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
+        if display not in items:
+            self.list_pedidos.insert(tk.END, display)
+        self.mapa.desenhar_pedido(pedido)
 
-        separador = ttk.Separator(self.frame_metricas, orient="horizontal")
-        separador.pack(fill="x", padx=10, pady=5)
+    def remover_pedido_visual(self, pedido):
+        items = list(self.list_pedidos.get(0, tk.END))
+        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
+        if display in items:
+            idx = items.index(display)
+            self.list_pedidos.delete(idx)
+        self.mapa.remover_pedido(pedido)
 
-        self.text_metricas = tk.Label(
-            self.frame_metricas,
-            text="Aguardando dados...",
-            justify="left",
-            font=("Arial", 11),
-            bg="#dcefe4",
-            fg="#333"
+
+    # Atualiza mapa e métricas (chamado a cada segundo pelo root.after)."""
+    def atualizar(self):
+        m = self.simulador.gestor.metricas
+        metrics = m.calcular_metricas()
+        text = (
+            f"Pedidos completos: {metrics['pedidos_servicos']}\n"
+            f"Pedidos rejeitados: {metrics['pedidos_rejeitados']}\n"
+            f"Emissões totais: {metrics['emissoes_totais']:.2f}\n"
+            f"Custo total: {metrics['custo_total']:.2f}\n"
+            f"Km totais: {metrics['km_totais']:.1f}"
         )
-        self.text_metricas.pack(padx=15, pady=10, anchor="nw")
+        self.label_metricas.config(text=text)
+
+        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes if p.estado.name == "PENDENTE"]
+        self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos)
+
+        try:
+            self.root.after(1000, self.atualizar)
+        except tk.TclError:
+            pass
 
 
-
-    def criar_painel_controlo(self):
-        ttk.Style().configure("TButton", font=("Arial", 11), padding=6)
-
-        ttk.Button(self.frame_base, text="Iniciar", command=self.executar_simulacao).pack(side="left", padx=10)
-        ttk.Button(self.frame_base, text="Pausar", command=self.pausar_simulacao).pack(side="left", padx=10)
-        ttk.Button(self.frame_base, text="Reset", command=self.resetar_simulacao).pack(side="left", padx=10)
-        ttk.Button(self.frame_base, text="Sair", command=self.root.destroy).pack(side="right", padx=10)
 
     def executar_simulacao(self):
-        print("Simulação iniciada...")
+        self.registar_evento("Iniciar simulação")
         self.simulador.executar()
 
     def pausar_simulacao(self):
-        print("Simulação pausada (não implementada).")
-
-    def resetar_simulacao(self):
-        print("Reset ao estado da simulação (não implementada).")
+        self.registar_evento("Pausa solicitada (não implementada).")
 
     def iniciar(self):
         self.root.mainloop()
-
-
-    def atualizar(self):
-        m = self.simulador.gestor.metricas
-
-        self.text_metricas.config(text=(
-            f"Pedidos concluídos: {m.pedidos_servicos}\n"
-            f"Pedidos rejeitados: {m.pedidos_rejeitados}\n"
-            f"Emissões totais: {m.emissoes_totais:.2f}\n"
-            f"Custo total: {m.custo_total:.2f}\n"
-            f"Km totais: {m.km_totais:.2f}\n"
-            f"Taxa de sucesso: {m.calcular_metricas()['taxa_sucesso']:.2f}"
-        ))
-
-        self.mapa.atualizar_veiculos(self.simulador.gestor.veiculos)
-        self.root.after(1000, self.atualizar)
-
-
-
-
