@@ -41,3 +41,6 @@ class Pedido:
     def valida_pedido(self) -> bool:
         return self.passageiros > 0 
     
+    def atribui_veiculo_pedido(self, taxi_id: str):
+        self.veiculo_atribuido = taxi_id
+    

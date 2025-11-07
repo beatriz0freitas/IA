@@ -5,7 +5,7 @@ Contém propriedades de autonomia, consumo e custo por km.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from modelo.grafo import TipoNo
+from modelo.grafo import Grafo, TipoNo
 
 class EstadoVeiculo(Enum):
     DISPONIVEL = "disponivel"         
@@ -25,7 +25,8 @@ class Veiculo(ABC):
     custo_km: float                         # custo operacional (energia ou combustível)
     estado: EstadoVeiculo
     km_total: float                         # km totais percorridos
-
+    rota: list[str] = None                  # rota atual (lista de nós)
+    indice_rota: int = 0                  
 
     def consegue_percorrer(self, distancia_km: float) -> bool:
         return self.autonomia_km >= distancia_km
@@ -39,6 +40,32 @@ class Veiculo(ABC):
         self.posicao = no_destino
         self.km_total += distancia_km
 
+    # Recarrega/reabastece o veículo se estiver no tipo de nó correto
+    def repor_autonomia(self, tipo_no:TipoNo):
+        if self.pode_carregar_abastecer(tipo_no):
+            self.autonomia_km = self.autonomiaMax_km
+            self.estado = EstadoVeiculo.DISPONIVEL
+            return True
+        return False
+    
+    def definir_rota(self, rota: list[str]):
+        self.rota = rota
+        self.indice_rota = 0
+    
+    #todo: considerar meter no gestor de frota
+    def mover_um_passo(self, grafo: Grafo):
+        if not self.rota or self.indice_rota >= len(self.rota) - 1:
+            return False
+        prox_no = self.rota[self.indice_rota + 1]
+        aresta = grafo.get_aresta(self.posicao, prox_no)
+        self.move(aresta.distancia_km, prox_no)
+        self.indice_rota += 1
+        return True
+    
+    #todo: verifiar todas variaveis que influenciam custp
+    def custo_operacao(self, distancia_km: float) -> float:
+        return self.custo_km * distancia_km
+
     @abstractmethod
     def tipo_veiculo(self) -> str:
         pass
@@ -51,17 +78,10 @@ class Veiculo(ABC):
     def calcula_emissao(self, distancia_km: float) -> float:
         pass
 
-    # Recarrega/reabastece o veículo se estiver no tipo de nó correto
-    def repor_autonomia(self, tipo_no:TipoNo):
-        if self.pode_carregar_abastecer(self, tipo_no):
-            self.autonomia_km = self.autonomiaMax_km
-            self.estado = EstadoVeiculo.DISPONIVEL
-            return True
-        return False
 
 
 @dataclass
-class VeiculoConbustao(Veiculo):
+class VeiculoCombustao(Veiculo):
     tempo_reabastecimento_min: int              
     emissao_CO2_km: float   
 

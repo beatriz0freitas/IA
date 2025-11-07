@@ -34,7 +34,9 @@ class GestorFrota:
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
 
-
+    def tentar_recarregar(self, v: Veiculo) -> bool:
+        tipo_no = self.grafo.nos[v.posicao].tipo
+        return v.repor_autonomia(tipo_no)
 
 
     # ==========================================================
@@ -50,32 +52,32 @@ class GestorFrota:
         ]
 
 
+    def selecionar_veiculo_para_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
+        ...
 
-
-    #todo: substituir por algoritmos de procura - atualemnte veículo compatível e mais próximo.
-    def atribuir_veiculo_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
+    def atribuir_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
         candidatos = [
             v for v in self.veiculos_disponiveis()
             if v.pode_transportar(pedido.passageiros)
-            and (v.tipo_veiculo() == pedido.pref_ambiental
-                 or pedido.pref_ambiental == "qualquer")
+            and (v.tipo_veiculo() == pedido.pref_ambiental or pedido.pref_ambiental == "qualquer")
         ]
-
         if not candidatos:
             pedido.estado = EstadoPedido.REJEITADO
             return None
 
-        # Escolher o veículo mais próximo
-        v_escolhido = min(
-            candidatos,
-            key=lambda v: self.grafo.distancia(v.posicao, pedido.posicao_inicial)
-        )
+        def distancia_total(v):
+            return self.grafo.distancia(v.posicao, pedido.posicao_inicial)
 
-        # Atualizar estados
-        v_escolhido.estado = EstadoVeiculo.A_SERVICO
-        pedido.estado = EstadoPedido.ATRIBUIDO
+        v_escolhido = min(candidatos, key=distancia_total)
+
         pedido.veiculo_atribuido = v_escolhido.id_veiculo
+        pedido.estado = EstadoPedido.ATRIBUIDO
+        v_escolhido.estado = EstadoVeiculo.A_SERVICO
 
+        # todo: bfs está na pasta dos algoritmos - adaptar para diferente selecao
+        # nova rota = posição atual → recolha → destino
+        rota = self.grafo.bfs_com_checkpoint(v_escolhido.posicao, pedido.posicao_inicial, pedido.posicao_destino)
+        v_escolhido.definir_rota(rota)
         return v_escolhido
 
 
@@ -106,7 +108,8 @@ class GestorFrota:
 
         pedido.estado = EstadoPedido.CONCLUIDO
         veiculo.estado = EstadoVeiculo.DISPONIVEL
-        self.pedidos_pendentes.remove(pedido)
+        if pedido in self.pedidos_pendentes:
+            self.pedidos_pendentes.remove(pedido)
         self.pedidos_concluidos.append(pedido)
         self.metricas.registar_pedido(pedido, tempo_resposta=tempo_atual - pedido.instante_pedido)
 

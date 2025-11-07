@@ -28,6 +28,14 @@ class Metricas:
         emissao = v.calcula_emissao(distancia)
         self.atualizar_metricas(custo, emissao, distancia)
 
+    def registar_evento(self, tempo: int, pedido: Pedido, veiculo_id: str):
+        self.eventos.append({
+            "tempo": tempo,
+            "pedido": pedido.id_pedido,
+            "veiculo": veiculo_id,
+            "estado": pedido.estado
+        })
+
     def registar_pedido(self, pedido: Pedido, tempo_resposta: int):
         if pedido.estado.name == "CONCLUIDO":
             self.pedidos_servicos += 1
