@@ -22,9 +22,11 @@ class Simulador:
         self.fila_pedidos = []                      # heap de (instante, prioridade, pedido)
         self.pedidos_todos = []                     # histórico (para métricas)
 
+
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
     def agendar_pedido(self, pedido: Pedido):
-        heapq.heappush(self.fila_pedidos, (pedido.instante_pedido, -pedido.prioridade, pedido))
+        heapq.heappush(self.fila_pedidos, 
+                       (pedido.instante_pedido, -pedido.prioridade, pedido)) #o sinal “–” inverte a prioridade, porque a heap ordena do menor para o maior
         self.pedidos_todos.append(pedido)
 
     # Gera pedidos aleatórios ao longo da duração da simulação.- instante aleatório.
@@ -61,27 +63,30 @@ class Simulador:
     # ==========================================================
     # Processamento interno
     # ==========================================================
+    
     def processar_pedidos_novos(self):
         while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
+            #pedido é removido da heap para nao ser processado again
             _, _, pedido = heapq.heappop(self.fila_pedidos)
+
             self.gestor.adicionar_pedido(pedido)
             print(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial}→{pedido.posicao_destino})")
 
-    def mover_veiculos(self):
-        for v in self.gestor.veiculos.values():
-            if hasattr(v, "rota"):
-                chegou = not v.mover_um_passo(self.gestor.grafo)
-                if chegou:
-                    v.estado = EstadoVeiculo.DISPONIVEL
-
     def atribuir_pedidos_pendentes(self):
-        pendentes = [p for p in self.gestor.pedidos_pendentes 
-                     if p.estado == EstadoPedido.PENDENTE]
+        pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
         for p in pendentes:
             veiculo = self.gestor.atribuir_pedido(p)
             if veiculo:
-                self.gestor.executar_viagem(veiculo, p, self.tempo_atual)
-                print(f"[t={self.tempo_atual}] Veiculo {veiculo.id_veiculo} atribuído ao pedido {p.id_pedido}")
+                print(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} atribuído ao pedido {p.id_pedido}")
+                veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+
+    def mover_veiculos(self):
+        for v in self.gestor.veiculos.values():
+            if hasattr(v, "rota")and v.estado in (EstadoVeiculo.EM_DESLOCACAO, EstadoVeiculo.A_SERVICO):
+                chegou = not v.mover_um_passo(self.gestor.grafo)
+                if chegou:
+                    v.estado = EstadoVeiculo.DISPONIVEL
+                    print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} chegou ao destino final ({v.posicao})")
 
     def verificar_recargas(self):
         for v in self.gestor.veiculos.values():

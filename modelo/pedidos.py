@@ -23,11 +23,11 @@ class Pedido:
     posicao_destino: str
     passageiros: int
     instante_pedido: int                        # instante em minutos na simulação
-    instante_atendimento: Optional[int] = None             
     prioridade: int                             # maior valor = mais urgente
     pref_ambiental: Literal["eletrico","combustao"]
     estado: EstadoPedido
     veiculo_atribuido: str                      # id do veículo atribuído ao pedido
+    instante_atendimento: Optional[int] = None             
 
     # Validação automática da preferência ambiental.
     def __post_init__(self):

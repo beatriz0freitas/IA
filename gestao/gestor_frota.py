@@ -52,38 +52,56 @@ class GestorFrota:
         ]
 
 
-    def selecionar_veiculo_para_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
-        ...
 
-    def atribuir_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
+    # Critério: veículo disponível com capacidade suficiente e menor distância até à origem do pedido.
+    def selecionar_veiculo_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
         candidatos = [
             v for v in self.veiculos_disponiveis()
             if v.pode_transportar(pedido.passageiros)
             and (v.tipo_veiculo() == pedido.pref_ambiental or pedido.pref_ambiental == "qualquer")
         ]
+
         if not candidatos:
-            pedido.estado = EstadoPedido.REJEITADO
             return None
 
         def distancia_total(v):
-            return self.grafo.distancia(v.posicao, pedido.posicao_inicial)
+            try:
+                return self.grafo.distancia(v.posicao, pedido.posicao_inicial)
+            except ValueError:
+                # caso a ligação não exista diretamente
+                return float("inf")
 
-        v_escolhido = min(candidatos, key=distancia_total)
+        return min(candidatos, key=distancia_total)
 
+
+    def atribuir_pedido(self, pedido: Pedido) -> Optional[Veiculo]:
+        v_escolhido = self.selecionar_veiculo_pedido(pedido)
+        if not v_escolhido:
+            pedido.estado = EstadoPedido.REJEITADO
+            return None
+       
         pedido.veiculo_atribuido = v_escolhido.id_veiculo
         pedido.estado = EstadoPedido.ATRIBUIDO
         v_escolhido.estado = EstadoVeiculo.A_SERVICO
 
-        # todo: bfs está na pasta dos algoritmos - adaptar para diferente selecao
+        # todo: adaptar para diferente selecao de algoritmo
         # nova rota = posição atual → recolha → destino
-        rota = self.grafo.bfs_com_checkpoint(v_escolhido.posicao, pedido.posicao_inicial, pedido.posicao_destino)
-        v_escolhido.definir_rota(rota)
+        rota = [v_escolhido.posicao, pedido.posicao_inicial, pedido.posicao_destino]
+
+        #remove rós repetidos consecutivos
+        rota_filtrada = [rota[0]]
+        for no in rota[1:]:
+            if no != rota_filtrada[-1]:
+                rota_filtrada.append(no)
+
+        v_escolhido.definir_rota(rota_filtrada)
         return v_escolhido
+
+
 
 
     # Execução de viagens e atualizações - custos, emissões, posição e autonomia.
     def executar_viagem(self, veiculo: Veiculo, pedido: Pedido, tempo_atual: int):
-
         # 1. Deslocar até à origem da viagem
         dist_origem = self.grafo.distancia(veiculo.posicao, pedido.posicao_inicial)
         if not veiculo.consegue_percorrer(dist_origem):

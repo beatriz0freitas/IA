@@ -53,7 +53,7 @@ class Grafo:
         for e in self.adjacentes[no_origem]:
             if e.no_destino == no_dest:
                 return e
-        raise ValueError(f"No edge from {no_origem} to {no_dest}")
+        raise ValueError(f"Não existe aresta de {no_origem} para {no_dest}")
     
     def vizinhos(self, id_no: str) -> List[Aresta]:
         return self.adjacentes.get(id_no, [])

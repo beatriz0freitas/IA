@@ -25,9 +25,9 @@ class Veiculo(ABC):
     custo_km: float                         # custo operacional (energia ou combustível)
     estado: EstadoVeiculo
     km_total: float                         # km totais percorridos
+    id_rota: int        
     rota: list[str] = None                  # rota atual (lista de nós)
-    indice_rota: int = 0                  
-
+           
     def consegue_percorrer(self, distancia_km: float) -> bool:
         return self.autonomia_km >= distancia_km
     
@@ -50,16 +50,16 @@ class Veiculo(ABC):
     
     def definir_rota(self, rota: list[str]):
         self.rota = rota
-        self.indice_rota = 0
+        self.id_rota = 0
     
-    #todo: considerar meter no gestor de frota
     def mover_um_passo(self, grafo: Grafo):
-        if not self.rota or self.indice_rota >= len(self.rota) - 1:
+        if not self.rota or self.id_rota >= len(self.rota) - 1:
             return False
-        prox_no = self.rota[self.indice_rota + 1]
+        
+        prox_no = self.rota[self.id_rota + 1]
         aresta = grafo.get_aresta(self.posicao, prox_no)
         self.move(aresta.distancia_km, prox_no)
-        self.indice_rota += 1
+        self.id_rota += 1
         return True
     
     #todo: verifiar todas variaveis que influenciam custp
@@ -80,7 +80,7 @@ class Veiculo(ABC):
 
 
 
-@dataclass
+@dataclass(kw_only=True)
 class VeiculoCombustao(Veiculo):
     tempo_reabastecimento_min: int              
     emissao_CO2_km: float   
@@ -98,7 +98,7 @@ class VeiculoCombustao(Veiculo):
     #todo: reabastecimento nao ser total
     #todo: tempo de reabastecimento afetar a simulação
 
-@dataclass
+@dataclass(kw_only=True)
 class VeiculoEletrico(Veiculo):
     tempo_recarregamento_min: int  
     capacidade_bateria_kWh: float    
