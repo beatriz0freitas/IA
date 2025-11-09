@@ -14,11 +14,16 @@ def dfs(grafo: Grafo, start_id: str, goal_id: str) -> List[str]:
         if atual == goal_id:
             return caminho
 
-        if atual not in visitados:
-            visitados.add(atual)
-            for aresta in grafo.vizinhos(atual):
-                vizinho = aresta.no_destino
-                if vizinho not in visitados:
-                    pilha.append((vizinho, caminho + [vizinho]))
+        if atual in visitados:
+            continue
+            
+        visitados.add(atual)
+        
+        vizinhos = list(grafo.vizinhos(atual))
+        for aresta in reversed(vizinhos):
+            vizinho = aresta.no_destino
+            if vizinho not in visitados:
+                
+                pilha.append((vizinho, caminho + [vizinho]))
 
-    return []  # nenhum caminho encontrado
+    return []  
