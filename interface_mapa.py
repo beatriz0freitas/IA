@@ -3,11 +3,12 @@ from modelo.grafo import Grafo, TipoNo
 
 NODE_RADIUS = 10
 VEHICLE_HALF = 6
-SCALE = 70
-OFFSET = 50
+SCALE = 90
+OFFSET_X = 500  # Horizontal 
+OFFSET_Y = 250  # Vertical 
 
 class InterfaceMapa(tk.Canvas):
-    def __init__(self, parent, grafo: Grafo, width=720, height=600):
+    def __init__(self, parent, grafo: Grafo, width=800, height=600):
         super().__init__(parent, bg="#f2fdf5", highlightthickness=0, width=width, height=height)
         self.grafo = grafo
         self.pack(expand=True, fill="both")
@@ -22,8 +23,8 @@ class InterfaceMapa(tk.Canvas):
         if id_no in self.pos_cache:
             return self.pos_cache[id_no]
         no = self.grafo.nos[id_no]
-        x = no.posicaox * SCALE + OFFSET
-        y = no.posicaoy * SCALE + OFFSET
+        x = no.posicaox * SCALE + OFFSET_X
+        y = no.posicaoy * SCALE + OFFSET_Y
         self.pos_cache[id_no] = (x, y)
         return x, y
 
@@ -56,7 +57,7 @@ class InterfaceMapa(tk.Canvas):
         self.desenhar_nos()
 
     
-    def draw_legend(self, x=10, y=10):
+    def draw_legend(self, x=10, y=200):
         self.delete("legenda")
 
         # layout da legenda — apresenta símbolo e texto

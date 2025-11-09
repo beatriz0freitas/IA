@@ -29,10 +29,13 @@ class InterfaceTaxiGreen:
         # mapa (InterfaceMapa)
         self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo)
         
-        # ========== SELEÇÃO DE ALGORITMO ==========
-        tk.Label(self.frame_direita, text="Algoritmo de Procura", 
-                 bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5))
-        
+            # ========== SELEÇÃO DE ALGORITMO ==========
+        frame_algoritmo = tk.Frame(self.frame_direita, bg="#d6ede0")
+        frame_algoritmo.pack(pady=(10, 5), fill="x")
+
+        tk.Label(frame_algoritmo, text="Algoritmo de Procura", 
+                bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(0, 8))
+
         self.algoritmo_var = tk.StringVar(value="astar")
         algoritmos = [
             ("A* (A-Estrela)", "astar"),
@@ -40,38 +43,78 @@ class InterfaceTaxiGreen:
             ("BFS (Breadth-First)", "bfs"),
             ("DFS (Depth-First)", "dfs")
         ]
-        
+
         for nome, valor in algoritmos:
             tk.Radiobutton(
-                self.frame_direita,
+                frame_algoritmo,
                 text=nome,
                 variable=self.algoritmo_var,
                 value=valor,
                 bg="#d6ede0",
+                activebackground="#d6ede0",
+                selectcolor="#90EE90",  # ✨ Verde quando selecionado
+                font=("Arial", 10),
                 command=self.atualizar_algoritmo
-            ).pack(anchor="w", padx=20)
+            ).pack(anchor="w", padx=20, pady=2)
 
-        tk.Label(self.frame_direita, text="", bg="#d6ede0", height=1).pack()  # espaçador
+        # Separador visual
+        tk.Frame(self.frame_direita, bg="#a8d5ba", height=2).pack(fill="x", pady=10)
+        
+        # painel de métricas
+        tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 13, "bold")).pack(pady=(5, 5))
 
-        # painel de métricas (simples)
-        tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 14, "bold")).pack(pady=(10, 5))
-        self.label_metricas = tk.Label(self.frame_direita, text="Sem dados", bg="#d6ede0", justify="left", font=("Arial", 10))
-        self.label_metricas.pack(padx=10, pady=5, anchor="w")
+        # Frame com fundo branco
+        frame_metricas = tk.Frame(self.frame_direita, bg="white", relief="solid", borderwidth=1)
+        frame_metricas.pack(padx=10, pady=5, fill="x")
+
+        self.label_metricas = tk.Label(frame_metricas, text="Sem dados", 
+                                    bg="white", justify="left", font=("Arial", 9))
+        self.label_metricas.pack(padx=8, pady=8, anchor="w")
 
         # painel de pedidos ativos
-        tk.Label(self.frame_direita, text="Pedidos Ativos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(12, 2), anchor="w", padx=10)
-        self.list_pedidos = tk.Listbox(self.frame_direita, height=8)
-        self.list_pedidos.pack(padx=10, pady=5, fill="x")
+        tk.Label(self.frame_direita, text="Pedidos Ativos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
 
+        # Frame com scrollbar
+        frame_pedidos = tk.Frame(self.frame_direita)
+        frame_pedidos.pack(padx=10, pady=5, fill="both", expand=False)
+
+        scrollbar_pedidos = tk.Scrollbar(frame_pedidos)
+        scrollbar_pedidos.pack(side="right", fill="y")
+
+        self.list_pedidos = tk.Listbox(frame_pedidos, height=6, yscrollcommand=scrollbar_pedidos.set, font=("Arial", 9))
+        self.list_pedidos.pack(side="left", fill="both", expand=True)
+        scrollbar_pedidos.config(command=self.list_pedidos.yview)
         # log / feedback
-        tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 2), anchor="w", padx=10)
-        self.text_log = tk.Text(self.frame_direita, height=10, width=36)
-        self.text_log.pack(padx=10, pady=5)
+       
+        tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
+
+        # Frame com scrollbar
+        frame_log = tk.Frame(self.frame_direita)
+        frame_log.pack(padx=10, pady=5, fill="both", expand=True)
+
+        scrollbar_log = tk.Scrollbar(frame_log)
+        scrollbar_log.pack(side="right", fill="y")
+
+        self.text_log = tk.Text(frame_log, height=10, width=36, 
+                                wrap="word", yscrollcommand=scrollbar_log.set, font=("Arial", 8))
+        self.text_log.pack(side="left", fill="both", expand=True)
+        scrollbar_log.config(command=self.text_log.yview)
 
         # controlos
-        ttk.Button(self.frame_direita, text="Iniciar", command=self.executar_simulacao).pack(padx=10, pady=6, fill="x")
-        ttk.Button(self.frame_direita, text="Pausar", command=self.pausar_simulacao).pack(padx=10, pady=2, fill="x")
+        frame_botoes = tk.Frame(self.frame_direita, bg="#d6ede0")
+        frame_botoes.pack(padx=10, pady=10, fill="x")
 
+        btn_iniciar = tk.Button(frame_botoes, text="▶ Iniciar Simulação", 
+                                command=self.executar_simulacao,
+                                bg="#4CAF50", fg="white", font=("Arial", 11, "bold"),
+                                relief="raised", bd=2, cursor="hand2")
+        btn_iniciar.pack(fill="x", pady=3)
+
+        btn_pausar = tk.Button(frame_botoes, text="⏸ Pausar", 
+                            command=self.pausar_simulacao,
+                            bg="#FF9800", fg="white", font=("Arial", 10),
+                            relief="raised", bd=2, cursor="hand2")
+        btn_pausar.pack(fill="x", pady=3)
 
     def atualizar_algoritmo(self):
         """Chamado quando o utilizador muda o algoritmo selecionado"""
