@@ -10,7 +10,7 @@ from modelo.grafo import No
 
 # Calcula a distância euclidiana (em km) entre dois nós.
 def dist_euclidiana(no_a: No, no_b: No) -> float:
-    return math.hypot(no_a.x - no_b.x, no_a.y - no_b.y)
+    return math.hypot(no_a.posicaox - no_b.posicaox, no_a.posicaoy - no_b.posicaoy)
 
 # Estima o tempo (em minutos) entre dois nós com base na distância euclidiana.
 def tempo_heuristica(no_a: No, no_b: No,

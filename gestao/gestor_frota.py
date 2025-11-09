@@ -4,6 +4,10 @@ from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
 from modelo.grafo import Grafo, TipoNo
 from gestao.metricas import Metricas
+from gestao.algoritmos_procura.a_estrela import a_star_search
+from gestao.algoritmos_procura.ucs import uniform_cost_search
+from gestao.algoritmos_procura.bfs import bfs
+from gestao.algoritmos_procura.dfs import dfs
 
 '''
     Classe responsável pela gestão da frota da TaxiGreen. 
@@ -17,6 +21,45 @@ class GestorFrota:
         self.pedidos_pendentes: List[Pedido] = []
         self.pedidos_concluidos: List[Pedido] = []
         self.metricas = Metricas()
+        self.algoritmo_procura = "astar"
+
+
+    # ==========================================================
+    # Gestão de algoritmos de procura
+    # ==========================================================
+
+    def definir_algoritmo_procura(self, nome: str):
+        """Escolhe qual algoritmo de procura usar: astar, ucs, bfs ou dfs"""
+        if nome.lower() in ("astar", "ucs", "bfs", "dfs"):
+            self.algoritmo_procura = nome.lower()
+        else:
+            raise ValueError("Algoritmo desconhecido. Use: astar, ucs, bfs ou dfs.")
+    
+    def calcular_rota(self, origem: str, destino: str):
+        """Calcula rota entre dois nós usando o algoritmo definido"""
+        if self.algoritmo_procura == "astar":
+             custo, caminho = a_star_search(self.grafo, origem, destino)
+        elif self.algoritmo_procura == "ucs":
+            custo, caminho = uniform_cost_search(self.grafo, origem, destino)
+        elif self.algoritmo_procura == "bfs":
+            caminho = bfs(self.grafo, origem, destino)
+            custo = self.calcular_tempo_rota(caminho)
+        elif self.algoritmo_procura == "dfs":
+            caminho = dfs(self.grafo, origem, destino)
+            custo = self.calcular_tempo_rota(caminho)
+        else:
+             raise ValueError("Algoritmo de procura não definido.")
+        return caminho, custo
+
+    def calcular_tempo_rota(self, caminho: List[str]) -> float:
+        """Soma o tempo de viagem das arestas ao longo do caminho"""
+        if not caminho or len(caminho) < 2:
+            return 0.0
+        tempo = 0.0
+        for i in range(len(caminho) - 1):
+            aresta = self.grafo.get_aresta(caminho[i], caminho[i + 1])
+            tempo += aresta.tempoViagem_min
+        return tempo
 
 
     # ==========================================================
@@ -86,7 +129,16 @@ class GestorFrota:
 
         # todo: adaptar para diferente selecao de algoritmo
         # nova rota = posição atual → recolha → destino
-        rota = [v_escolhido.posicao, pedido.posicao_inicial, pedido.posicao_destino]
+        
+        # Calcula a rota até ao pedido
+        rota_ate_origem, custo_origem = self.calcular_rota(v_escolhido.posicao, pedido.posicao_inicial)
+
+        # Calcula a rota do pedido até ao destino
+        rota_para_destino, custo_destino = self.calcular_rota(pedido.posicao_inicial, pedido.posicao_destino)
+
+        # Junta as duas rotas, evitando repetir o nó de recolha
+        rota = rota_ate_origem + rota_para_destino[1:]
+
 
         #remove rós repetidos consecutivos
         rota_filtrada = [rota[0]]

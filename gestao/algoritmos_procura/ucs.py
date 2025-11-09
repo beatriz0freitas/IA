@@ -5,10 +5,11 @@ Procura não informada: expande o nó com menor custo acumulado (g).
 
 import heapq
 from typing import Dict, List, Tuple, Optional
-from models.graph import Graph
+from modelo.grafo import Grafo
+
 
 # Calcula o caminho de menor custo (tempo total em minutos) entre dois nós. Retorna: (custo_total_min, caminho)
-def uniform_cost_search(graph: Graph, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
+def uniform_cost_search(graph: Grafo, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
     if start_id == goal_id:
         return 0.0, [start_id]
 
@@ -28,11 +29,13 @@ def uniform_cost_search(graph: Graph, start_id: str, goal_id: str) -> Tuple[floa
                 current = came_from[current]
             return cost_so_far[goal_id], list(reversed(path))
 
-        for edge in graph.neighbors(current):
-            new_cost = cost_so_far[current] + edge.travel_time_min
-            if edge.to_node not in cost_so_far or new_cost < cost_so_far[edge.to_node]:
-                cost_so_far[edge.to_node] = new_cost
-                came_from[edge.to_node] = current
-                heapq.heappush(frontier, (new_cost, edge.to_node))
+        for aresta in graph.vizinhos(current):
+            vizinho = aresta.no_destino
+            novo_custo = cost_so_far[current] + aresta.tempoViagem_min
+            if vizinho not in cost_so_far or novo_custo < cost_so_far[vizinho]:
+                cost_so_far[vizinho] = novo_custo
+                came_from[vizinho] = current
+                heapq.heappush(frontier, (novo_custo, vizinho))
+
 
     return float('inf'), []

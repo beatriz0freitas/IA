@@ -4,13 +4,13 @@ entre dois nós do grafo.
 """
 
 import heapq
-import uteis
+from . import uteis
 from typing import Dict, List, Tuple, Optional
-from models.graph import Graph
-from algorithms.utils import euclidean_distance
+from modelo.grafo import Grafo
+from gestao.algoritmos_procura.uteis import dist_euclidiana
 
 # Calcula o menor custo (tempo em minutos) e o caminho entre dois nós. Retorna (tempo_total_min, [lista_de_nós]).
-def a_star_search(graph: Graph, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
+def a_star_search(grafo: Grafo, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
     if start_id == goal_id:
         return 0.0, [start_id]
 
@@ -28,13 +28,17 @@ def a_star_search(graph: Graph, start_id: str, goal_id: str) -> Tuple[float, Lis
                 current = came_from[current]
             return g_score[goal_id], list(reversed(path))
 
-        for edge in graph.neighbors(current):
-            tentative_g = g_score[current] + edge.travel_time_min
-            if edge.to_node not in g_score or tentative_g < g_score[edge.to_node]:
-                came_from[edge.to_node] = current
-                g_score[edge.to_node] = tentative_g
-                h = euclidean_distance(graph.nodes[edge.to_node], graph.nodes[goal_id])
+        
+        for aresta in grafo.vizinhos(current):
+            no_destino = aresta.no_destino
+            custo = aresta.tempoViagem_min
+            tentative_g = g_score[current] + aresta.tempoViagem_min
+
+            if no_destino not in g_score or tentative_g < g_score[no_destino]:
+                came_from[no_destino] = current
+                g_score[no_destino] = tentative_g
+                h = dist_euclidiana(grafo.nos[aresta.no_destino], grafo.nos[goal_id])
                 f = tentative_g + h
-                heapq.heappush(open_set, (f, edge.to_node))
+                heapq.heappush(open_set, (f, no_destino))
 
     return float('inf'), []
