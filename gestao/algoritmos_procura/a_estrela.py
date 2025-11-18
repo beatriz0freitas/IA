@@ -1,44 +1,76 @@
 """
-Implementação do algoritmo A* (A-estrela) para encontrar o caminho ótimo
-entre dois nós do grafo.
+A* (A-Estrela) refatorizado - Busca informada com heurística euclidiana
 """
 
 import heapq
-from . import uteis
 from typing import Dict, List, Tuple, Optional
 from modelo.grafo import Grafo
 from gestao.algoritmos_procura.uteis import dist_euclidiana
 
-# Calcula o menor custo (tempo em minutos) e o caminho entre dois nós. Retorna (tempo_total_min, [lista_de_nós]).
-def a_star_search(grafo: Grafo, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
+
+def a_star_search(
+    grafo: Grafo, start_id: str, goal_id: str
+) -> Tuple[float, List[str]]:
+    """
+    Encontra o caminho de menor custo entre dois nós usando A*.
+    
+    Retorna: (tempo_total_minutos, [lista_de_nós])
+    """
     if start_id == goal_id:
         return 0.0, [start_id]
 
+    if start_id not in grafo.nos or goal_id not in grafo.nos:
+        raise ValueError(f"Nó inicial ou final não existe no grafo")
+
     open_set = []
     heapq.heappush(open_set, (0.0, start_id))
+
     came_from: Dict[str, Optional[str]] = {start_id: None}
     g_score: Dict[str, float] = {start_id: 0.0}
+    closed_set = set()
 
     while open_set:
         _, current = heapq.heappop(open_set)
+
+        if current in closed_set:
+            continue
+
         if current == goal_id:
+            # Reconstruir caminho
             path = []
-            while current is not None:
-                path.append(current)
-                current = came_from[current]
+            node = goal_id
+            while node is not None:
+                path.append(node)
+                node = came_from[node]
             return g_score[goal_id], list(reversed(path))
 
-        
+        closed_set.add(current)
+
+        # Explorar vizinhos
         for aresta in grafo.vizinhos(current):
-            no_destino = aresta.no_destino
-            custo = aresta.tempoViagem_min
+            vizinho = aresta.no_destino
+
+            if vizinho in closed_set:
+                continue
+
+            # Custo real do deslocamento atual
             tentative_g = g_score[current] + aresta.tempoViagem_min
 
-            if no_destino not in g_score or tentative_g < g_score[no_destino]:
-                came_from[no_destino] = current
-                g_score[no_destino] = tentative_g
-                h = dist_euclidiana(grafo.nos[aresta.no_destino], grafo.nos[goal_id])
-                f = tentative_g + h
-                heapq.heappush(open_set, (f, no_destino))
+            # Se já foi visitado com custo menor, pular
+            if vizinho in g_score and tentative_g >= g_score[vizinho]:
+                continue
 
+            # Atualizar scores
+            came_from[vizinho] = current
+            g_score[vizinho] = tentative_g
+
+            # Calcular heurística (distância euclidiana até goal)
+            h = dist_euclidiana(grafo.nos[vizinho], grafo.nos[goal_id])
+
+            # f = g + h (custo real + estimado)
+            f = tentative_g + h
+
+            heapq.heappush(open_set, (f, vizinho))
+
+    # Sem caminho encontrado
     return float('inf'), []
