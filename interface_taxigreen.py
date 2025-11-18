@@ -18,15 +18,15 @@ class InterfaceTaxiGreen:
         self.criar_layout_principal()
         self.root.after(1000, self.atualizar)
 
+
     def criar_layout_principal(self):
-        # frames
         self.frame_mapa = tk.Frame(self.root, bg="#ecf4ee")
         self.frame_mapa.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
         self.frame_direita = tk.Frame(self.root, bg="#d6ede0", width=300)
         self.frame_direita.pack(side="right", fill="y", padx=10, pady=10)
 
-        # mapa (InterfaceMapa)
+
         self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo)
         
             # ========== SELEÇÃO DE ALGORITMO ==========
@@ -52,7 +52,7 @@ class InterfaceTaxiGreen:
                 value=valor,
                 bg="#d6ede0",
                 activebackground="#d6ede0",
-                selectcolor="#90EE90",  # ✨ Verde quando selecionado
+                selectcolor="#90EE90",
                 font=("Arial", 10),
                 command=self.atualizar_algoritmo
             ).pack(anchor="w", padx=20, pady=2)
@@ -63,7 +63,6 @@ class InterfaceTaxiGreen:
         # painel de métricas
         tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 13, "bold")).pack(pady=(5, 5))
 
-        # Frame com fundo branco
         frame_metricas = tk.Frame(self.frame_direita, bg="white", relief="solid", borderwidth=1)
         frame_metricas.pack(padx=10, pady=5, fill="x")
 
@@ -84,8 +83,8 @@ class InterfaceTaxiGreen:
         self.list_pedidos = tk.Listbox(frame_pedidos, height=6, yscrollcommand=scrollbar_pedidos.set, font=("Arial", 9))
         self.list_pedidos.pack(side="left", fill="both", expand=True)
         scrollbar_pedidos.config(command=self.list_pedidos.yview)
-        # log / feedback
        
+        # log / feedback
         tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
 
         # Frame com scrollbar
@@ -104,27 +103,26 @@ class InterfaceTaxiGreen:
         frame_botoes = tk.Frame(self.frame_direita, bg="#d6ede0")
         frame_botoes.pack(padx=10, pady=10, fill="x")
 
-        btn_iniciar = tk.Button(frame_botoes, text="▶ Iniciar Simulação", 
+        btn_iniciar = tk.Button(frame_botoes, text="Iniciar Simulação", 
                                 command=self.executar_simulacao,
                                 bg="#4CAF50", fg="white", font=("Arial", 11, "bold"),
                                 relief="raised", bd=2, cursor="hand2")
         btn_iniciar.pack(fill="x", pady=3)
 
-        btn_pausar = tk.Button(frame_botoes, text="⏸ Pausar", 
+        btn_pausar = tk.Button(frame_botoes, text="Pausar", 
                             command=self.pausar_simulacao,
                             bg="#FF9800", fg="white", font=("Arial", 10),
                             relief="raised", bd=2, cursor="hand2")
         btn_pausar.pack(fill="x", pady=3)
 
+    # Chamado quando o utilizador muda o algoritmo selecionado
     def atualizar_algoritmo(self):
-        """Chamado quando o utilizador muda o algoritmo selecionado"""
         algoritmo = self.algoritmo_var.get()
         self.simulador.gestor.definir_algoritmo_procura(algoritmo)
         self.registar_evento(f"Algoritmo alterado para: {algoritmo.upper()}")
         
-        
+    # Escreve mensagem no log e força refresh leve.
     def registar_evento(self, msg: str):
-        """Escreve mensagem no log e força refresh leve."""
         self.text_log.insert(tk.END, f"{msg}\n")
         self.text_log.see(tk.END)
         # atualização não bloqueante
@@ -133,8 +131,8 @@ class InterfaceTaxiGreen:
         except tk.TclError:
             pass
 
+    # Adiciona pedido à lista lateral e desenha no mapa.
     def mostrar_pedido(self, pedido):
-        """Adiciona pedido à lista lateral e desenha no mapa."""
         items = list(self.list_pedidos.get(0, tk.END))
         display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
         if display not in items:
@@ -150,7 +148,7 @@ class InterfaceTaxiGreen:
         self.mapa.remover_pedido(pedido)
 
 
-    # Atualiza mapa e métricas (chamado a cada segundo pelo root.after)."""
+    # Atualiza mapa e métricas (chamado a cada segundo pelo root.after).
     def atualizar(self):
         m = self.simulador.gestor.metricas
         metrics = m.calcular_metricas()
@@ -183,12 +181,9 @@ class InterfaceTaxiGreen:
         self.registar_evento(f" Iniciar simulação com {self.simulador.gestor.algoritmo_procura.upper()}")
         self.simulador.executar()
 
+    # Reinicia a simulação do zero (chamado automaticamente se já terminou)
     def reiniciar_simulacao(self):
-        """Reinicia a simulação do zero (chamado automaticamente se já terminou)"""
-        # Reset do tempo e estado
         self.simulador.tempo_atual = 0
-        
-        # Reset dos pedidos
         self.simulador.gestor.pedidos_pendentes = []
         self.simulador.gestor.pedidos_concluidos = []
         
@@ -208,7 +203,6 @@ class InterfaceTaxiGreen:
         
         # Reset das métricas
         self.simulador.gestor.metricas = Metricas()
-        
         # Limpar interface
         self.list_pedidos.delete(0, tk.END)
         

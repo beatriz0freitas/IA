@@ -118,7 +118,6 @@ class InterfaceMapa(tk.Canvas):
             del self.pedidos_desenhados[pid]
 
         x, y = self._pos(pedido.posicao_inicial)
-        # marcador roxo para pedido
         marker = self.create_oval(x - 6, 
                                   y - 6, 
                                   x + 6, 
