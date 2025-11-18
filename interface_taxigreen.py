@@ -12,9 +12,8 @@ from modelo.pedidos import EstadoPedido
 from modelo.veiculos import EstadoVeiculo
 from gestao.metricas import Metricas
 
-
+"""Interface Tkinter para visualização da simulação TaxiGreen"""
 class InterfaceTaxiGreen:
-    """Interface Tkinter para visualização da simulação TaxiGreen"""
 
     def __init__(self, simulador):
         self.simulador = simulador
@@ -26,11 +25,11 @@ class InterfaceTaxiGreen:
         self.simulacao_thread = None
         self.atualizacoes_fila = []  # fila de mensagens para atualizar
 
-        self._criar_layout_principal()
-        self.root.after(500, self._atualizar_periodicamente)
+        self.criar_layout_principal()
+        self.root.after(500, self.atualizar_periodicamente)
 
-    def _criar_layout_principal(self):
-        """Cria layout em dois painéis: mapa (esquerda) e controles (direita)"""
+    """Cria layout em dois painéis: mapa (esquerda) e controles (direita)"""
+    def criar_layout_principal(self):
 
         # ===== PAINEL ESQUERDO: MAPA =====
         self.frame_mapa = tk.Frame(self.root, bg="#ecf4ee")
@@ -42,6 +41,7 @@ class InterfaceTaxiGreen:
         self.frame_direita = tk.Frame(self.root, bg="#d6ede0", width=300)
         self.frame_direita.pack(side="right", fill="y", padx=10, pady=10)
         self.frame_direita.pack_propagate(False)
+
 
         # --- Seleção de Algoritmo ---
         frame_algo = tk.Frame(self.frame_direita, bg="#d6ede0")
@@ -138,7 +138,7 @@ class InterfaceTaxiGreen:
         self.btn_iniciar.pack(fill="x", pady=3)
 
         self.btn_pausar = tk.Button(
-            frame_botoes, text="⏸ Pausar",
+            frame_botoes, text="Pausar",
             command=self._pausar_simulacao,
             bg="#FF9800", fg="white", font=("Arial", 10),
             relief="raised", bd=2, cursor="hand2", state="disabled"
@@ -146,21 +146,21 @@ class InterfaceTaxiGreen:
         self.btn_pausar.pack(fill="x", pady=3)
 
         self.btn_reset = tk.Button(
-            frame_botoes, text="⟲ Reiniciar",
+            frame_botoes, text="Reiniciar",
             command=self._reiniciar_simulacao,
             bg="#2196F3", fg="white", font=("Arial", 10),
             relief="raised", bd=2, cursor="hand2"
         )
         self.btn_reset.pack(fill="x", pady=3)
 
-    def _atualizar_algoritmo(self):
-        """Muda o algoritmo de procura"""
+    """Muda o algoritmo de procura"""
+    def atualizar_algoritmo(self):
         algo = self.algoritmo_var.get()
         self.simulador.gestor.definir_algoritmo_procura(algo)
-        self.registar_evento(f"⚙ Algoritmo alterado para: {algo.upper()}")
-
+        self.registar_evento(f"Algoritmo alterado para: {algo.upper()}")
+    
+    """Escreve evento no log"""
     def registar_evento(self, msg: str):
-        """Escreve evento no log"""
         self.text_log.insert(tk.END, f"{msg}\n")
         self.text_log.see(tk.END)
         try:
@@ -170,7 +170,6 @@ class InterfaceTaxiGreen:
 
     # Adiciona pedido à lista lateral e desenha no mapa.
     def mostrar_pedido(self, pedido):
-        """Adiciona pedido à lista lateral"""
         items = list(self.list_pedidos.get(0, tk.END))
         display = (
             f"{pedido.id_pedido}: {pedido.posicao_inicial} → "
@@ -180,8 +179,8 @@ class InterfaceTaxiGreen:
             self.list_pedidos.insert(tk.END, display)
         self.mapa.desenhar_pedido(pedido)
 
+    """Remove pedido da lista e mapa"""
     def remover_pedido_visual(self, pedido):
-        """Remove pedido da lista e mapa"""
         items = list(self.list_pedidos.get(0, tk.END))
         display = (
             f"{pedido.id_pedido}: {pedido.posicao_inicial} → "
@@ -192,8 +191,8 @@ class InterfaceTaxiGreen:
             self.list_pedidos.delete(idx)
         self.mapa.remover_pedido(pedido)
 
+    """Chamado pela simulação para atualizar visualização"""
     def atualizar_renderizacao(self):
-        """Chamado pela simulação para atualizar visualização"""
         try:
             m = self.simulador.gestor.metricas
             metrics = m.calcular_metricas()
@@ -218,23 +217,23 @@ class InterfaceTaxiGreen:
         except tk.TclError:
             pass
 
-    def _atualizar_periodicamente(self):
-        """Atualiza interface a cada 500ms"""
+    """Atualiza interface a cada 500ms"""
+    def atualizar_periodicamente(self):
         try:
             if self.root.winfo_exists():
                 self.atualizar_renderizacao()
-                self.root.after(500, self._atualizar_periodicamente)
+                self.root.after(500, self.atualizar_periodicamente)
         except tk.TclError:
             pass
 
-    def _executar_simulacao(self):
-        """Inicia simulação em thread separada"""
+    """Inicia simulação em thread separada"""
+    def executar_simulacao(self):
         if self.simulacao_thread and self.simulacao_thread.is_alive():
-            self.registar_evento("⚠ Simulação já está em curso")
+            self.registar_evento("Simulação já está em curso")
             return
 
         if self.simulador.tempo_atual >= self.simulador.duracao_total:
-            self._reiniciar_simulacao()
+            self.reiniciar_simulacao()
 
         self.btn_iniciar.config(state="disabled")
         self.btn_pausar.config(state="normal")
@@ -244,15 +243,15 @@ class InterfaceTaxiGreen:
         )
         self.simulacao_thread.start()
 
-    def _pausar_simulacao(self):
-        """Pausa a simulação"""
+    """Pausa a simulação"""
+    def pausar_simulacao(self):
         self.simulador.pausar()
         self.btn_iniciar.config(state="normal")
         self.btn_pausar.config(state="disabled")
-        self.registar_evento("⏸ Simulação pausada")
-
-    def _reiniciar_simulacao(self):
-        """Reinicia simulação do zero"""
+        self.registar_evento("Simulação pausada")
+    
+    """Reinicia simulação do zero"""
+    def reiniciar_simulacao(self):
         self.simulador.tempo_atual = 0
         self.simulador.em_execucao = False
 
@@ -284,8 +283,8 @@ class InterfaceTaxiGreen:
         self.btn_iniciar.config(state="normal")
         self.btn_pausar.config(state="disabled")
 
-        self.registar_evento("⟲ Simulação reiniciada")
+        self.registar_evento("Simulação reiniciada")
 
+    """Inicia loop da GUI"""
     def iniciar(self):
-        """Inicia loop da GUI"""
         self.root.mainloop()
