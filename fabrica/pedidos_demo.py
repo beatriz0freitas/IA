@@ -9,7 +9,7 @@ class PedidosDemo:
         p1 = Pedido(
             id_pedido="P1",
             posicao_inicial="A",
-            posicao_destino="B",
+            posicao_destino="K",
             passageiros=2,
             instante_pedido=0,
             prioridade=2,
