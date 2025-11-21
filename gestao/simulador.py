@@ -1,60 +1,44 @@
-"""
-Simulador refatorizado - Controla fluxo temporal da simulação
-"""
-
 from __future__ import annotations
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Callable, Optional
+import random
 import heapq
 
 from gestao.gestor_frota import GestorFrota
 from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
+from interface_taxigreen import InterfaceTaxiGreen
 
-# TYPE_CHECKING evita import cíclico
-if TYPE_CHECKING:
-    from interface_taxigreen import InterfaceTaxiGreen
-
-
+"""
+Responsável por gerir o tempo e os eventos dinâmicos da simulação.
+      - chegada de pedidos no tempo correto;
+      - atribuição de veículos disponíveis;
+      - execução de viagens;
+      - recarga automática de veículos com autonomia baixa.
+"""
 class Simulador:
-    """
-    Responsável por gerir o tempo e os eventos dinâmicos da simulação:
-    - Chegada de pedidos no tempo correto
-    - Atribuição de veículos disponíveis
-    - Execução de viagens (movimentação passo a passo)
-    - Recarga automática de veículos com autonomia baixa
-    """
-
-    def __init__(self, gestor: GestorFrota, duracao_total: int = 120):
+    #todo: nao gosto de duracao já ter um valor fixo
+    def __init__(self, gestor: GestorFrota, duracao_total: int = 120, interface=None):
         self.gestor = gestor
-        self.duracao_total = duracao_total  # em minutos
+        self.duracao_total = duracao_total          # em minutos
         self.tempo_atual = 0
-        self.fila_pedidos = []  # heap de (instante, prioridade, pedido)
-        self.pedidos_todos = []  # histórico completo
-        self.interface: Optional[InterfaceTaxiGreen] = None
-        self.em_execucao = False
-
-    def set_interface(self, interface: InterfaceTaxiGreen):
-        """Define interface sem criar ciclo de imports"""
+        self.fila_pedidos = []                      # heap de (instante, prioridade, pedido)
+        self.pedidos_todos = []                     # histórico (para métricas)
         self.interface = interface
 
+
+    # Adiciona um pedido que será introduzido na simulação no instante especificado.
     def agendar_pedido(self, pedido: Pedido):
-        """Adiciona um pedido à fila de espera da simulação"""
-        heapq.heappush(
-            self.fila_pedidos,
-            (pedido.instante_pedido, -pedido.prioridade, pedido)
-        )
+        heapq.heappush(self.fila_pedidos, 
+                       (pedido.instante_pedido, -pedido.prioridade, pedido)) #o sinal “–” inverte a prioridade, porque a heap ordena do menor para o maior
         self.pedidos_todos.append(pedido)
 
+    # Gera pedidos aleatórios ao longo da duração da simulação.- instante aleatório.
     def gerar_pedidos_aleatorios(self, n: int, zonas: List[str]):
-        """Gera n pedidos aleatórios ao longo da simulação"""
-        import random
         for i in range(n):
             pedido = Pedido(
                 id_pedido=f"P{i+1}",
                 posicao_inicial=random.choice(zonas),
-                posicao_destino=random.choice(
-                    [z for z in zonas if z != zonas[0]]
-                ),
+                posicao_destino=random.choice([z for z in zonas if z != zonas[0]]),
                 passageiros=random.randint(1, 4),
                 instante_pedido=random.randint(0, self.duracao_total - 1),
                 pref_ambiental=random.choice(["eletrico", "combustao"]),
@@ -63,174 +47,75 @@ class Simulador:
             )
             self.agendar_pedido(pedido)
 
+
+
+    # Avança a simulação minuto a minuto - introduz novos pedidos agendados; tenta atribuir pedidos pendentes a veículos; executa viagens e recargas.
     def executar(self):
-        """Loop principal da simulação - avança minuto a minuto"""
-        print(f"\n▶ Simulação iniciada (0 → {self.duracao_total} min)\n")
-        self.em_execucao = True
-        self.tempo_atual = 0
+        print(f"Início da simulação (0 → {self.duracao_total} min)\n")
 
-        while self.tempo_atual <= self.duracao_total and self.em_execucao:
-            # 1. Processar novos pedidos chegados
-            self._processar_pedidos_novos()
-
-            # 2. Atribuir pedidos pendentes a veículos disponíveis
-            self._atribuir_pedidos_pendentes()
-
-            # 3. Mover todos os veículos um passo
-            self._mover_veiculos()
-
-            # 4. Verificar recargas necessárias
-            self._verificar_recargas()
-
-            # 5. Atualizar interface
+        while self.tempo_atual <= self.duracao_total:
+            self.processar_pedidos_novos()
+            self.atribuir_pedidos_pendentes()
+            self.mover_veiculos()
+            self.verificar_recargas()
+            
             if self.interface:
-                self.interface.atualizar_renderizacao()
-
+                self.interface.atualizar()
+            
             self.tempo_atual += 1
 
-        print(f"\n✓ Simulação terminada")
-        if self.interface:
-            self.interface.registar_evento("Simulação concluída")
+        print("Simulação terminada.\n")
+        self.gestor.metricas.calcular_metricas()
 
-    def pausar(self):
-        """Para a execução da simulação"""
-        self.em_execucao = False
-
-    # ==================== MÉTODOS INTERNOS ====================
-
-    def _processar_pedidos_novos(self):
-        """Remove pedidos da fila que chegam no tempo_atual"""
-        while (self.fila_pedidos and
-               self.fila_pedidos[0][0] == self.tempo_atual):
+    # ==========================================================
+    # Processamento interno
+    # ==========================================================
+    
+    def processar_pedidos_novos(self):
+        while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
+            #pedido é removido da heap para nao ser processado again
             _, _, pedido = heapq.heappop(self.fila_pedidos)
 
-            # Validar pedido
-            if not self._validar_pedido(pedido):
-                pedido.estado = EstadoPedido.REJEITADO
-                if self.interface:
-                    self.interface.registar_evento(
-                        f"[t={self.tempo_atual}] ✗ Pedido {pedido.id_pedido} "
-                        f"rejeitado (origem/destino inválido)"
-                    )
-                continue
-
             self.gestor.adicionar_pedido(pedido)
-
-            if self.interface:
-                self.interface.registar_evento(
-                    f"[t={self.tempo_atual}] + Pedido {pedido.id_pedido}: "
-                    f"{pedido.posicao_inicial} → {pedido.posicao_destino}"
-                )
+            if hasattr(self, "interface") and self.interface:
+                self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial} → {pedido.posicao_destino})")
                 self.interface.mostrar_pedido(pedido)
 
-    def _atribuir_pedidos_pendentes(self):
-        """Tenta atribuir cada pedido PENDENTE a um veículo disponível"""
-        pendentes = [
-            p for p in self.gestor.pedidos_pendentes
-            if p.estado == EstadoPedido.PENDENTE
-        ]
-
-        for pedido in pendentes:
-            veiculo = self.gestor.atribuir_pedido(pedido)
+    def atribuir_pedidos_pendentes(self):
+        pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
+        for p in pendentes:
+            veiculo = self.gestor.atribuir_pedido(p)
             if veiculo:
-                if self.interface:
-                    self.interface.registar_evento(
-                        f"[t={self.tempo_atual}] ↳ {veiculo.id_veiculo} "
-                        f"atribuído a {pedido.id_pedido}"
-                    )
-            else:
-                if self.interface:
-                    self.interface.registar_evento(
-                        f"[t={self.tempo_atual}] ⚠ Pedido {pedido.id_pedido} "
-                        f"sem veículo disponível"
-                    )
+                print(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} atribuído ao pedido {p.id_pedido}")
+                veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
 
-    def _mover_veiculos(self):
-        """Move cada veículo um passo na sua rota (se tiver)"""
+    def mover_veiculos(self):
         for v in self.gestor.veiculos.values():
             if not v.rota:
-                continue  # Sem rota atribuída
+                continue  # sem rota atribuída
 
+            # tenta mover um passo
             em_movimento = v.mover_um_passo(self.gestor.grafo)
-
             if em_movimento:
-                # Calcular distância do último movimento
-                no_anterior = (
-                    v.rota[v.indice_rota - 1]
-                    if v.indice_rota > 0
-                    else v.posicao
-                )
+                no_anterior = v.rota[v.indice_rota - 1] if v.indice_rota > 0 else v.posicao
                 no_atual = v.rota[v.indice_rota]
-                aresta = self.gestor.grafo.get_aresta(no_anterior, no_atual)
+                distancia = self.gestor.grafo.get_aresta(no_anterior, no_atual).distancia_km
+                self.gestor.metricas.integracao_metricas(v, distancia)
+            
+            if hasattr(self, "interface") and self.interface:
+                self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} moveu-se para {v.posicao} (rota {v.id_rota})")
 
-                # Integrar métricas
-                self.gestor.metricas.integracao_metricas(v, aresta.distancia_km)
+            if not em_movimento and v.estado == EstadoVeiculo.DISPONIVEL:
+                print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} concluiu rota {v.id_rota}.")
 
-                if self.interface:
-                    self.interface.registar_evento(
-                        f"[t={self.tempo_atual}] → {v.id_veiculo} "
-                        f"em rota (pos: {v.posicao})"
-                    )
+            # atualizar a interface 
+            if hasattr(self, "interface") and self.interface is not None:
+                self.interface.atualizar()
 
-            # Se rota terminou
-            if not em_movimento and v.rota:
-                pedido_ativo = self._encontrar_pedido_veiculo(v.id_veiculo)
-
-                if pedido_ativo and pedido_ativo.estado == EstadoPedido.ATRIBUIDO:
-                    # Concluir pedido
-                    pedido_ativo.estado = EstadoPedido.CONCLUIDO
-                    tempo_resposta = self.tempo_atual - pedido_ativo.instante_pedido
-                    self.gestor.metricas.registar_pedido(
-                        pedido_ativo, tempo_resposta
-                    )
-
-                    if self.interface:
-                        self.interface.registar_evento(
-                            f"[t={self.tempo_atual}] ✓ Pedido "
-                            f"{pedido_ativo.id_pedido} concluído"
-                        )
-                        self.interface.remover_pedido_visual(pedido_ativo)
-
-                    # Remover de pendentes
-                    if pedido_ativo in self.gestor.pedidos_pendentes:
-                        self.gestor.pedidos_pendentes.remove(pedido_ativo)
-                    self.gestor.pedidos_concluidos.append(pedido_ativo)
-
-                # Limpar rota do veículo
-                v.rota = []
-                v.indice_rota = 0
-                v.estado = EstadoVeiculo.DISPONIVEL
-
-    def _verificar_recargas(self):
-        """Recarrega veículos com autonomia baixa (<10%)"""
+    def verificar_recargas(self):
         for v in self.gestor.veiculos.values():
-            limiar = 0.1 * v.autonomiaMax_km
-
-            if v.autonomia_km < limiar and v.posicao:
+            if v.autonomia_km < (0.1 * v.autonomiaMax_km):
                 tipo_no = self.gestor.grafo.nos[v.posicao].tipo
-                sucesso = v.repor_autonomia(tipo_no)
-
-                if sucesso:
-                    if self.interface:
-                        self.interface.registar_evento(
-                            f"[t={self.tempo_atual}] ⚡ {v.id_veiculo} "
-                            f"recarregado em {v.posicao}"
-                        )
-
-    # ==================== MÉTODOS AUXILIARES ====================
-
-    def _validar_pedido(self, pedido: Pedido) -> bool:
-        """Verifica se origem e destino existem no grafo"""
-        return (
-            pedido.posicao_inicial in self.gestor.grafo.nos and
-            pedido.posicao_destino in self.gestor.grafo.nos and
-            pedido.posicao_inicial != pedido.posicao_destino and
-            pedido.passageiros > 0
-        )
-
-    def _encontrar_pedido_veiculo(self, id_veiculo: str) -> Optional[Pedido]:
-        """Encontra o pedido atribuído a um veículo"""
-        for p in self.gestor.pedidos_pendentes:
-            if p.veiculo_atribuido == id_veiculo:
-                return p
-        return None
+                if v.repor_autonomia(tipo_no):
+                    v.estado = EstadoVeiculo.DISPONIVEL
+                    print(f"[t={self.tempo_atual}] Veiculo {v.id_veiculo} recarregado na posição {v.posicao}")
