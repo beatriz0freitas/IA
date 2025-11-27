@@ -87,7 +87,7 @@ class Simulador:
     def processar_pedidos_novos(self):
         while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
             #pedido é removido da heap para nao ser processado again
-            _, _, pedido = heapq.heappop(self.fila_pedidos)
+            _, _, _, pedido = heapq.heappop(self.fila_pedidos)
 
             self.gestor.adicionar_pedido(pedido)
 
@@ -98,7 +98,8 @@ class Simulador:
 
 
     def atribuir_pedidos_pendentes(self):
-        pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
+        pendentes = [p for p in self.gestor.pedidos_pendentes 
+                     if p.estado == EstadoPedido.PENDENTE]
 
         for p in pendentes:
             veiculo = self.gestor.atribuir_pedido(p, self.tempo_atual)
@@ -186,25 +187,22 @@ class Simulador:
                         f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"recolheu passageiros (Pedido {pedido.id_pedido})")
             
             # Verifica se chegou ao destino final
-            elif (veiculo.posicao == pedido.posicao_destino and 
-                  pedido.estado == EstadoPedido.EM_EXECUCAO and
-                  not veiculo.rota[veiculo.indice_rota:]):  # Rota terminada
-                
-                pedido.estado = EstadoPedido.CONCLUIDO
-                veiculo.estado = EstadoVeiculo.DISPONIVEL
-                veiculo.id_pedido_atual = None
-                
-                tempo_resposta = self.tempo_atual - pedido.instante_pedido
-                self.gestor.metricas.registar_pedido(pedido, tempo_resposta)
-                
-                self.gestor.pedidos_pendentes.remove(pedido)
-                self.gestor.pedidos_concluidos.append(pedido)
-                
-                if self.interface:
-                    self.interface.registar_evento(
-                        f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
-                    self.interface.remover_pedido_visual(pedido)
-
+            elif (veiculo.posicao == pedido.posicao_destino and   pedido.estado == EstadoPedido.EM_EXECUCAO):
+                if not veiculo.rota or veiculo.indice_rota >= len(veiculo.rota) - 1:
+                    pedido.estado = EstadoPedido.CONCLUIDO
+                    veiculo.estado = EstadoVeiculo.DISPONIVEL
+                    veiculo.pedido_atual = None
+                    
+                    tempo_resposta = self.tempo_atual - pedido.instante_pedido
+                    self.gestor.metricas.registar_pedido(pedido, tempo_resposta)
+                    
+                    self.gestor.pedidos_pendentes.remove(pedido)
+                    self.gestor.pedidos_concluidos.append(pedido)
+                    
+                    if self.interface:
+                        self.interface.registar_evento(
+                            f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
+                        self.interface.remover_pedido_visual(pedido)
 
 
     def verificar_recargas(self):

@@ -27,7 +27,7 @@ class Veiculo(ABC):
     km_total: float                         # km totais percorridos
     km_sem_passageiros: float               # km percorridos sem passageiros
     indice_rota: int                        # índice atual na rota
-    # tempo_ocupado_ate: int = 0          # tempo até ficar disponível (minutos simulação)
+    tempo_ocupado_ate: int = 0              # tempo até ficar disponível (minutos simulação)
     id_pedido_atual: str = None             # id do pedido que está a servir atualmente
     rota: list[str] = None                  # rota atual (lista de nós)
            

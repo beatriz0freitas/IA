@@ -70,12 +70,12 @@ class InterfaceMapa(tk.Canvas):
 
         # layout da legenda — apresenta símbolo e texto
         linhas = [
-            ("nos", "Zona de recolha", "#6fd673", "oval"),
-            ("recarga", "Estação de recarga", "#77bfff", "oval"),
-            ("posto", "Posto de abastecimento", "#ffb366", "oval"),
-            ("eletrico", "Veículo Elétrico", "#0077cc", "rect"),
-            ("combustao", "Veículo Combustão", "#cc7700", "rect"),
-            ("pedido", "Pedido ativo", "#9b59b6", "pin"),
+            ("Zona de recolha", "#6fd673", "oval"),
+            ("Estação de recarga", "#77bfff", "oval"),
+            ("Posto de abastecimento", "#ffb366", "oval"),
+            ("Veículo Elétrico", "#0077cc", "rect"),
+            ("Veículo Combustão", "#cc7700", "rect"),
+            ("Pedido ativo", "#9b59b6", "pin"),
         ]
 
         spacing = 26

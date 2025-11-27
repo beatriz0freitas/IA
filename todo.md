@@ -36,10 +36,10 @@ Mas o enunciado encoraja uma  **função composta** , ponderando:
 
 ### 3. **Gestão de Autonomia e Recargas**
 
-* [ ] **Planeamento proativo de recargas** - veículos devem ir recarregar ANTES de ficar sem autonomia
+* [X] **Planeamento proativo de recargas** - veículos devem ir recarregar ANTES de ficar sem autonomia
 * [ ] Implementar rota com checkpoint de recarga/abastecimento (usar `bfs_com_checkpoint` já existente)
-* [ ] Adicionar lógica de **recarga parcial** (não sempre 100%)
-* [ ] Implementar **tempo de recarga/abastecimento** afetando disponibilidade do veículo
+* [X] Adicionar lógica de **recarga parcial** (não sempre 100%)
+* [X] Implementar **tempo de recarga/abastecimento** afetando disponibilidade do veículo
 * [ ] Adicionar **fila de espera** em estações de recarga ocupadas
 
 ### 4. **Otimização de Rotas**
@@ -52,8 +52,8 @@ Mas o enunciado encoraja uma  **função composta** , ponderando:
 
 ### 5. **Métricas de Avaliação**
 
-* [ ] **Taxa de ocupação da frota** (% tempo com passageiros vs disponível)
-* [ ] **Km percorridos sem passageiros** (já tem `km_total` mas não distingue)
+* [X] **Taxa de ocupação da frota** (% tempo com passageiros vs disponível)
+* [X] **Km percorridos sem passageiros** (já tem `km_total` mas não distingue)
 * [ ] **Tempo médio de resposta** (tempo entre pedido e início do serviço)
 * [ ] **Emissões CO2 por pedido/por km**
 * [ ] **Custo por pedido** vs **receita** (falta modelar receita!)
@@ -81,7 +81,7 @@ Mas o enunciado encoraja uma  **função composta** , ponderando:
 ### 9. **Sistema de Preferências do Cliente**
 
 * [ ] Validar **preferência ambiental** na atribuição (atualmente há lógica mas aceita "qualquer")
-* [ ] Implementar **tempo máximo de espera** por cliente
+* [X] Implementar **tempo máximo de espera** por cliente
 * [ ] Sistema de **feedback/satisfação** do cliente
 
 ## 🟡 **DESEJÁVEL - Melhorias e Extensões**
@@ -137,9 +137,9 @@ Mas o enunciado encoraja uma  **função composta** , ponderando:
 ### 17. **Bugs e Inconsistências no Código**
 
 * [X] `mover_um_passo()` usa `id_rota` mas deveria ser `indice_rota` (inconsistência)
-* [ ] `executar_viagem()` calcula distância direta mas deveria usar rota calculada
-* [ ] Falta validação de **rota impossível** (sem caminho entre origem-destino)
-* [ ] `selecionar_veiculo_pedido()` usa distância direta mas deveria usar rota otimizada
+* [X] `executar_viagem()` calcula distância direta mas deveria usar rota calculada
+* [X] Falta validação de **rota impossível** (sem caminho entre origem-destino)
+* [X] `selecionar_veiculo_pedido()` usa distância direta mas deveria usar rota otimizada
 
 ### 18. **Melhorias na Simulação**
 

@@ -48,8 +48,8 @@ class Metricas:
             "emissoes_totais": round(self.emissoes_totais, 3),
             "km_totais": round(self.km_totais, 2),
             "km_sem_passageiros": round(self.km_sem_passageiros, 2),
-            "percentagem_km_sem_passageiros": (
-                round((self.km_sem_passageiros / self.km_totais) * 100, 1)
+            "perc_km_vazio": (
+                round((self.km_sem_passageiros / self.km_totais * 100), 1)
                 if self.km_totais > 0 else 0.0
             ),
             "pedidos_servicos": self.pedidos_servicos,

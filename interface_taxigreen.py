@@ -171,7 +171,7 @@ class InterfaceTaxiGreen:
             f"\n OPERAÇÃO:\n"
             f"Km totais: {metrics['km_totais']:.1f}\n"
             f"Km vazios: {metrics['km_sem_passageiros']:.1f}\n"
-            f"% vazio: {metrics['percentagem_km_vazio']}%\n"
+            f"% vazio: {metrics['perc_km_vazio']}%\n"
 
             f"Emissões totais: {metrics['emissoes_totais']:.2f}\n"
             f"Custo total: {metrics['custo_total']:.2f}\n"
@@ -220,6 +220,7 @@ class InterfaceTaxiGreen:
             v.indice_rota = 0
             v.km_sem_passageiros = 0.0
             v.id_pedido_atual = None
+            v.tempo_ocupado_ate = 0
 
         # Reset das métricas
         self.simulador.gestor.metricas = Metricas()
