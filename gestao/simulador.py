@@ -21,24 +21,29 @@ class Simulador:
         self.gestor = gestor
         self.duracao_total = duracao_total          # em minutos
         self.tempo_atual = 0
-        self.fila_pedidos = []                      # heap de (instante, prioridade, pedido)
+        self.fila_pedidos = []                      # heap de (instante, prioridade, id_pedido_atual, pedido)
         self.pedidos_todos = []                     # histórico (para métricas)
         self.interface = interface
 
 
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
     def agendar_pedido(self, pedido: Pedido):
-        heapq.heappush(self.fila_pedidos, 
-                       (pedido.instante_pedido, -pedido.prioridade, pedido)) #o sinal “–” inverte a prioridade, porque a heap ordena do menor para o maior
+        heapq.heappush(
+            self.fila_pedidos, 
+            (pedido.instante_pedido, -pedido.prioridade, pedido.id_pedido, pedido)) #o sinal “–” inverte a prioridade, porque a heap ordena do menor para o maior
         self.pedidos_todos.append(pedido)
 
     # Gera pedidos aleatórios ao longo da duração da simulação.- instante aleatório.
+    #todo: confirmar se é pertinente porque supostamente, para testes, os pedidos devem ser estatitos e nao random
     def gerar_pedidos_aleatorios(self, n: int, zonas: List[str]):
         for i in range(n):
+            origem = random.choice(zonas)
+            destino = random.choice([z for z in zonas if z != origem])
+
             pedido = Pedido(
                 id_pedido=f"P{i+1}",
-                posicao_inicial=random.choice(zonas),
-                posicao_destino=random.choice([z for z in zonas if z != zonas[0]]),
+                posicao_inicial=origem,
+                posicao_destino=destino,
                 passageiros=random.randint(1, 4),
                 instante_pedido=random.randint(0, self.duracao_total - 1),
                 pref_ambiental=random.choice(["eletrico", "combustao"]),
@@ -57,6 +62,7 @@ class Simulador:
             self.processar_pedidos_novos()
             self.atribuir_pedidos_pendentes()
             self.mover_veiculos()
+            self.verificar_conclusao_pedidos()
             self.verificar_recargas()
             
             if self.interface:
@@ -64,8 +70,15 @@ class Simulador:
             
             self.tempo_atual += 1
 
+        print("\n" + "="*60)
         print("Simulação terminada.\n")
-        self.gestor.metricas.calcular_metricas()
+        print("="*60)
+
+        metricas = self.gestor.metricas.calcular_metricas()
+        print("Resultados Finais:")
+        for chave, valor in metricas.items():
+            print(f"  {chave}: {valor}")
+
 
     # ==========================================================
     # Processamento interno
@@ -74,48 +87,125 @@ class Simulador:
     def processar_pedidos_novos(self):
         while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
             #pedido é removido da heap para nao ser processado again
-            _, _, pedido = heapq.heappop(self.fila_pedidos)
+            _, _, _, pedido = heapq.heappop(self.fila_pedidos)
 
             self.gestor.adicionar_pedido(pedido)
+
             if hasattr(self, "interface") and self.interface:
-                self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado ({pedido.posicao_inicial} → {pedido.posicao_destino})")
+                self.interface.registar_evento(
+                    f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "f"({pedido.posicao_inicial} → {pedido.posicao_destino})")
                 self.interface.mostrar_pedido(pedido)
 
+
     def atribuir_pedidos_pendentes(self):
-        pendentes = [p for p in self.gestor.pedidos_pendentes if p.estado == EstadoPedido.PENDENTE]
+        pendentes = [p for p in self.gestor.pedidos_pendentes 
+                     if p.estado == EstadoPedido.PENDENTE]
+
         for p in pendentes:
-            veiculo = self.gestor.atribuir_pedido(p)
+            veiculo = self.gestor.atribuir_pedido(p, self.tempo_atual)
+
             if veiculo:
-                print(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} atribuído ao pedido {p.id_pedido}")
-                veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+                if self.interface:
+                    self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f" atribuído ao pedido {p.id_pedido}")
+                    veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+            else:
+                if self.interface:
+                    self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {p.id_pedido} rejeitado - "f"nenhum veículo disponível")
+
 
     def mover_veiculos(self):
+        
         for v in self.gestor.veiculos.values():
             if not v.rota:
                 continue  # sem rota atribuída
 
-            # tenta mover um passo
-            em_movimento = v.mover_um_passo(self.gestor.grafo)
-            if em_movimento:
-                no_anterior = v.rota[v.indice_rota - 1] if v.indice_rota > 0 else v.posicao
-                no_atual = v.rota[v.indice_rota]
-                distancia = self.gestor.grafo.get_aresta(no_anterior, no_atual).distancia_km
-                self.gestor.metricas.integracao_metricas(v, distancia)
+            # Move um passo
+            moveu, chegou = v.mover_um_passo(self.gestor.grafo, self.tempo_atual)
             
-            if hasattr(self, "interface") and self.interface:
-                self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} moveu-se para {v.posicao} (rota {v.id_rota})")
+            if not moveu:
+                continue  # Veículo ocupado ou sem rota
+            
+            # Atualiza métricas do movimento
+            if v.indice_rota > 0:
+                no_anterior = v.rota[v.indice_rota - 1]
+                no_atual = v.rota[v.indice_rota]
+                aresta = self.gestor.grafo.get_aresta(no_anterior, no_atual)
+                
+                com_passageiros = (v.estado == EstadoVeiculo.A_SERVICO)
+                self.gestor.metricas.integracao_metricas(
+                    v, aresta.distancia_km, com_passageiros
+                )
+            
+            # Verifica se chegou ao destino
+            if chegou:
+                self.processar_chegada_destino(v)
 
-            if not em_movimento and v.estado == EstadoVeiculo.DISPONIVEL:
-                print(f"[t={self.tempo_atual}] Veículo {v.id_veiculo} concluiu rota {v.id_rota}.")
 
-            # atualizar a interface 
-            if hasattr(self, "interface") and self.interface is not None:
-                self.interface.atualizar()
+    # Processa chegada de veículo ao destino da rota
+    def processar_chegada_destino(self, veiculo: Veiculo):
+
+        tipo_no = self.gestor.grafo.nos[veiculo.posicao].tipo
+        
+        # Se precisa recarregar e está numa estação apropriada
+        if (veiculo.autonomia_km < 0.3 * veiculo.autonomiaMax_km and
+            veiculo.pode_carregar_abastecer(tipo_no)):
+            
+            veiculo.repor_autonomia(tipo_no, self.tempo_atual, recarga_parcial=0.8)
+            
+            if self.interface:
+                self.interface.registar_evento(
+                    f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"a recarregar em {veiculo.posicao}" )
+        
+        # Se estava em deslocação sem pedido, fica disponível
+        elif veiculo.estado == EstadoVeiculo.EM_DESLOCACAO:
+            veiculo.estado = EstadoVeiculo.DISPONIVEL
+            
+            if self.interface:
+                self.interface.registar_evento(
+                    f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"chegou a {veiculo.posicao}")
+
+
+    # Verifica se pedidos foram concluídos (veículo chegou ao destino final)
+    def verificar_conclusao_pedidos(self):
+
+        for pedido in list(self.gestor.pedidos_pendentes):
+            if pedido.estado != EstadoPedido.ATRIBUIDO:
+                continue
+            
+            veiculo = self.gestor.get_veiculo(pedido.veiculo_atribuido)
+            if not veiculo:
+                continue
+            
+            # Verifica se veículo está na posição de recolha
+            if veiculo.posicao == pedido.posicao_inicial and pedido.estado == EstadoPedido.ATRIBUIDO:
+                # Passou a transportar passageiros
+                pedido.estado = EstadoPedido.EM_EXECUCAO
+                veiculo.estado = EstadoVeiculo.A_SERVICO
+                
+                if self.interface:
+                    self.interface.registar_evento(
+                        f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"recolheu passageiros (Pedido {pedido.id_pedido})")
+            
+            # Verifica se chegou ao destino final
+            elif (veiculo.posicao == pedido.posicao_destino and   pedido.estado == EstadoPedido.EM_EXECUCAO):
+                if not veiculo.rota or veiculo.indice_rota >= len(veiculo.rota) - 1:
+                    pedido.estado = EstadoPedido.CONCLUIDO
+                    veiculo.estado = EstadoVeiculo.DISPONIVEL
+                    veiculo.pedido_atual = None
+                    
+                    tempo_resposta = self.tempo_atual - pedido.instante_pedido
+                    self.gestor.metricas.registar_pedido(pedido, tempo_resposta)
+                    
+                    self.gestor.pedidos_pendentes.remove(pedido)
+                    self.gestor.pedidos_concluidos.append(pedido)
+                    
+                    if self.interface:
+                        self.interface.registar_evento(
+                            f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
+                        self.interface.remover_pedido_visual(pedido)
+
 
     def verificar_recargas(self):
         for v in self.gestor.veiculos.values():
-            if v.autonomia_km < (0.1 * v.autonomiaMax_km):
-                tipo_no = self.gestor.grafo.nos[v.posicao].tipo
-                if v.repor_autonomia(tipo_no):
-                    v.estado = EstadoVeiculo.DISPONIVEL
-                    print(f"[t={self.tempo_atual}] Veiculo {v.id_veiculo} recarregado na posição {v.posicao}")
+            if v.estado == EstadoVeiculo.DISPONIVEL:
+                self.gestor.verificar_necessidade_recarga( v, self.tempo_atual, threshold=0.25 )
