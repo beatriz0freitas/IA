@@ -61,13 +61,11 @@ class InterfaceTaxiGreen:
                 command=self.atualizar_algoritmo
             ).pack(anchor="w", padx=20, pady=2)
 
-        # Separador visual
         tk.Frame(self.frame_direita, bg="#a8d5ba", height=2).pack(fill="x", pady=10)
         
         # painel de métricas
         tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 13, "bold")).pack(pady=(5, 5))
 
-        # Frame com fundo branco
         frame_metricas = tk.Frame(self.frame_direita, bg="white", relief="solid", borderwidth=1)
         frame_metricas.pack(padx=10, pady=5, fill="x")
 
@@ -77,7 +75,6 @@ class InterfaceTaxiGreen:
 
         # painel de pedidos ativos
         tk.Label(self.frame_direita, text="Pedidos Ativos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
-
         # Frame com scrollbar
         frame_pedidos = tk.Frame(self.frame_direita)
         frame_pedidos.pack(padx=10, pady=5, fill="both", expand=False)
@@ -88,8 +85,8 @@ class InterfaceTaxiGreen:
         self.list_pedidos = tk.Listbox(frame_pedidos, height=6, yscrollcommand=scrollbar_pedidos.set, font=("Arial", 9))
         self.list_pedidos.pack(side="left", fill="both", expand=True)
         scrollbar_pedidos.config(command=self.list_pedidos.yview)
+        
         # log / feedback
-       
         tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
 
         # Frame com scrollbar
@@ -139,7 +136,6 @@ class InterfaceTaxiGreen:
 
     # Adiciona pedido à lista lateral e desenha no mapa.
     def mostrar_pedido(self, pedido):
-        """Adiciona pedido à lista lateral e desenha no mapa."""
         items = list(self.list_pedidos.get(0, tk.END))
         display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
         if display not in items:
@@ -161,17 +157,29 @@ class InterfaceTaxiGreen:
         m = self.simulador.gestor.metricas
         metrics = m.calcular_metricas()
         algo_nome = self.simulador.gestor.algoritmo_procura.upper()
+
         text = (
             f"Algoritmo: {algo_nome}\n"
+            f"Tempo: {self.simulador.tempo_atual}/{self.simulador.duracao_total} min\n"
+
+            f"\n PEDIDOS:\n"
             f"Pedidos completos: {metrics['pedidos_servicos']}\n"
             f"Pedidos rejeitados: {metrics['pedidos_rejeitados']}\n"
+            f"Taxa sucesso: {metrics['taxa_sucesso']}%\n"
+            f"Tempo médio: {metrics['tempo_medio_resposta']} min\n"
+
+            f"\n OPERAÇÃO:\n"
+            f"Km totais: {metrics['km_totais']:.1f}\n"
+            f"Km vazios: {metrics['km_sem_passageiros']:.1f}\n"
+            f"% vazio: {metrics['percentagem_km_vazio']}%\n"
+
             f"Emissões totais: {metrics['emissoes_totais']:.2f}\n"
             f"Custo total: {metrics['custo_total']:.2f}\n"
-            f"Km totais: {metrics['km_totais']:.1f}"
         )
         self.label_metricas.config(text=text)
 
-        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes if p.estado.name == "PENDENTE"]
+        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes 
+                   if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)]
         self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos)
 
         try:
@@ -180,18 +188,17 @@ class InterfaceTaxiGreen:
             pass
 
 
-
+    # Se a simulação já terminou, reinicia automaticamente
     def executar_simulacao(self):
-        # Se a simulação já terminou, reinicia automaticamente
         if self.simulador.tempo_atual >= self.simulador.duracao_total:
             self.reiniciar_simulacao()
         
         self.registar_evento(f" Iniciar simulação com {self.simulador.gestor.algoritmo_procura.upper()}")
         self.simulador.executar()
 
+
+    """Reinicia a simulação do zero (chamado automaticamente se já terminou)"""
     def reiniciar_simulacao(self):
-        """Reinicia a simulação do zero (chamado automaticamente se já terminou)"""
-        # Reset do tempo e estado
         self.simulador.tempo_atual = 0
         
         # Reset dos pedidos
@@ -204,14 +211,16 @@ class InterfaceTaxiGreen:
             pedido.estado = EstadoPedido.PENDENTE
             pedido.veiculo_atribuido = None
             heapq.heappush(self.simulador.fila_pedidos, 
-                          (pedido.instante_pedido, -pedido.prioridade, pedido))
+                          (pedido.instante_pedido, -pedido.prioridade, pedido.id_pedido, pedido))
         
         # Reset dos veículos (voltar às posições iniciais)
         for v in self.simulador.gestor.veiculos.values():
             v.estado = EstadoVeiculo.DISPONIVEL
             v.rota = []
             v.indice_rota = 0
-        
+            v.km_sem_passageiros = 0.0
+            v.id_pedido_atual = None
+
         # Reset das métricas
         self.simulador.gestor.metricas = Metricas()
         
@@ -220,6 +229,7 @@ class InterfaceTaxiGreen:
         
         self.registar_evento(f"Simulação reiniciada automaticamente")
 
+    # TODO: implementar pausa
     def pausar_simulacao(self):
         self.registar_evento("Pausa solicitada (não implementada).")
 
