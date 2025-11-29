@@ -10,9 +10,14 @@ from gestao.gestor_frota import GestorFrota
 class VeiculosDemo:
     @staticmethod
     def criar_frota_demo(gestor: GestorFrota) -> GestorFrota:
+
+        nos_disponiveis = list(gestor.grafo.nos.keys())
+        if len(nos_disponiveis) < 2:
+            raise ValueError("O grafo do gestor não tem nós suficientes. Crie o grafo primeiro.")
+        
         v1 = VeiculoEletrico(
             id_veiculo="E1",
-            posicao="A",
+            posicao=nos_disponiveis[0],
             autonomia_km=20,
             autonomiaMax_km=20,
             capacidade_passageiros=4,
@@ -31,7 +36,7 @@ class VeiculosDemo:
 
         v2 = VeiculoCombustao(
             id_veiculo="C1",
-            posicao="C",
+            posicao=nos_disponiveis[2] if len(nos_disponiveis) > 2 else nos_disponiveis[1],
             autonomia_km=35,
             autonomiaMax_km=35,
             capacidade_passageiros=4,
