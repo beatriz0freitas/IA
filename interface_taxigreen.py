@@ -1,4 +1,3 @@
-# interface_taxigreen.py
 import tkinter as tk
 from tkinter import ttk
 import heapq
@@ -7,179 +6,280 @@ from modelo.pedidos import EstadoPedido
 from modelo.veiculos import EstadoVeiculo
 from gestao.metricas import Metricas
 
-"""Interface Tkinter para visualização da simulação TaxiGreen"""
 class InterfaceTaxiGreen:
 
     def __init__(self, simulador):
         self.simulador = simulador
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
-        self.root.geometry("1100x720")
-        self.root.configure(bg="#ecf4ee")
-
+        self.root.geometry("1300x800")
+        self.root.configure(bg="#f9fafb")
+        
         self.criar_layout_principal()
         self.root.after(1000, self.atualizar)
 
-    """Cria layout em dois painéis: mapa (esquerda) e controles (direita)"""
     def criar_layout_principal(self):
-
-        # ===== PAINEL ESQUERDO: MAPA =====
-        self.frame_mapa = tk.Frame(self.root, bg="#ecf4ee")
+        
+        # ===== MAPA =====
+        self.frame_mapa = tk.Frame(self.root, bg="#f9fafb")
         self.frame_mapa.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
-        self.frame_direita = tk.Frame(self.root, bg="#d6ede0", width=300)
-        self.frame_direita.pack(side="right", fill="y", padx=10, pady=10)
-
-        # mapa (InterfaceMapa)
-        self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo)
+        self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo, width=900, height=700)
         
-            # ========== SELEÇÃO DE ALGORITMO ==========
-        frame_algoritmo = tk.Frame(self.frame_direita, bg="#d6ede0")
-        frame_algoritmo.pack(pady=(10, 5), fill="x")
+        # ===== SIDEBAR =====
+        self.frame_direita = tk.Frame(self.root, bg="#ffffff", width=350)
+        self.frame_direita.pack(side="right", fill="y", padx=(0, 10), pady=10)
+        self.frame_direita.pack_propagate(False)
+        
+        self.criar_header()
+        self.criar_secao_algoritmo()
+        self.criar_secao_metricas()
+        self.criar_secao_pedidos()
+        self.criar_secao_eventos()
+        self.criar_botoes()
 
-        tk.Label(frame_algoritmo, text="Algoritmo de Procura", 
-                bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(0, 8))
+    def criar_header(self):
+        header = tk.Frame(self.frame_direita, bg="#ffffff")
+        header.pack(fill="x", padx=20, pady=15)
+        
+        tk.Label(header, text="TaxiGreen", 
+                bg="#ffffff", fg="#111827",
+                font=("Inter", 18, "bold")).pack(anchor="w")
+        
+        self.label_tempo = tk.Label(header, text="Tempo: 0/12 min", 
+                                   bg="#ffffff", fg="#6b7280",
+                                   font=("Inter", 11))
+        self.label_tempo.pack(anchor="w", pady=(2, 0))
+        
+        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=(0, 15))
 
+    def criar_secao_algoritmo(self):
+        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        tk.Label(frame, text="Algoritmo de Procura", 
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        
         self.algoritmo_var = tk.StringVar(value="astar")
+        
         algoritmos = [
             ("A* (A-Estrela)", "astar"),
             ("UCS (Uniform Cost)", "ucs"),
             ("BFS (Breadth-First)", "bfs"),
             ("DFS (Depth-First)", "dfs")
         ]
-
+        
         for nome, valor in algoritmos:
             tk.Radiobutton(
-                frame_algoritmo,
+                frame,
                 text=nome,
                 variable=self.algoritmo_var,
                 value=valor,
-                bg="#d6ede0",
-                activebackground="#d6ede0",
-                selectcolor="#90EE90",  # ✨ Verde quando selecionado
-                font=("Arial", 10),
-                command=self.atualizar_algoritmo
-            ).pack(anchor="w", padx=20, pady=2)
-
-        tk.Frame(self.frame_direita, bg="#a8d5ba", height=2).pack(fill="x", pady=10)
+                bg="#ffffff",
+                fg="#4b5563",
+                activebackground="#ffffff",
+                selectcolor="#f3f4f6",
+                font=("Inter", 10),
+                command=self.atualizar_algoritmo,
+                borderwidth=0,
+                highlightthickness=0,
+                padx=5
+            ).pack(anchor="w", pady=2)
         
-        # painel de métricas
-        tk.Label(self.frame_direita, text="Métricas", bg="#d6ede0", font=("Arial", 13, "bold")).pack(pady=(5, 5))
+        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
-        frame_metricas = tk.Frame(self.frame_direita, bg="white", relief="solid", borderwidth=1)
-        frame_metricas.pack(padx=10, pady=5, fill="x")
+    def criar_secao_metricas(self):
+        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        tk.Label(frame, text="Métricas", 
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 10))
+        
+        # Container grid
+        grid = tk.Frame(frame, bg="#ffffff")
+        grid.pack(fill="x")
+        
+        self.metricas_labels = {}
+        
+        metricas = [
+            ("pedidos", "Pedidos", "#10b981", 0, 0),
+            ("taxa", "Taxa Sucesso", "#3b82f6", 0, 1),
+            ("km", "Km Total", "#f59e0b", 1, 0),
+            ("custo", "Custo", "#8b5cf6", 1, 1)
+        ]
+        
+        for key, titulo, cor, row, col in metricas:
+            card = tk.Frame(grid, bg="#f9fafb", relief="flat", 
+                          width=145, height=70)
+            card.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
+            card.grid_propagate(False)
+            
+            tk.Frame(card, bg=cor, height=3).pack(fill="x")
+            
+            tk.Label(card, text=titulo, bg="#f9fafb", fg="#6b7280",
+                   font=("Inter", 9)).pack(pady=(8, 2))
+            
+            label = tk.Label(card, text="0", bg="#f9fafb", fg="#111827",
+                           font=("Inter", 16, "bold"))
+            label.pack()
+            
+            self.metricas_labels[key] = label
+        
+        grid.columnconfigure(0, weight=1)
+        grid.columnconfigure(1, weight=1)
+        
+        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
-        self.label_metricas = tk.Label(frame_metricas, text="Sem dados", 
-                                    bg="white", justify="left", font=("Arial", 9))
-        self.label_metricas.pack(padx=8, pady=8, anchor="w")
-
-        # painel de pedidos ativos
-        tk.Label(self.frame_direita, text="Pedidos Ativos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
-        # Frame com scrollbar
-        frame_pedidos = tk.Frame(self.frame_direita)
-        frame_pedidos.pack(padx=10, pady=5, fill="both", expand=False)
-
-        scrollbar_pedidos = tk.Scrollbar(frame_pedidos)
-        scrollbar_pedidos.pack(side="right", fill="y")
-
-        self.list_pedidos = tk.Listbox(frame_pedidos, height=6, yscrollcommand=scrollbar_pedidos.set, font=("Arial", 9))
+    def criar_secao_pedidos(self):
+        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame.pack(fill="both", expand=False, padx=20, pady=(0, 15))
+        
+        tk.Label(frame, text="Pedidos Ativos", 
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        
+        list_frame = tk.Frame(frame, bg="#f9fafb", relief="flat")
+        list_frame.pack(fill="both", expand=True)
+        
+        scrollbar = tk.Scrollbar(list_frame, bg="#e5e7eb", troughcolor="#f9fafb")
+        scrollbar.pack(side="right", fill="y")
+        
+        self.list_pedidos = tk.Listbox(
+            list_frame,
+            height=4,
+            yscrollcommand=scrollbar.set,
+            font=("Inter", 9),
+            bg="#f9fafb",
+            fg="#374151",
+            selectbackground="#dbeafe",
+            selectforeground="#1e40af",
+            borderwidth=0,
+            highlightthickness=0
+        )
         self.list_pedidos.pack(side="left", fill="both", expand=True)
-        scrollbar_pedidos.config(command=self.list_pedidos.yview)
+        scrollbar.config(command=self.list_pedidos.yview)
         
-        # log / feedback
-        tk.Label(self.frame_direita, text="Eventos", bg="#d6ede0", font=("Arial", 12, "bold")).pack(pady=(10, 5), anchor="w", padx=10)
+        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
-        # Frame com scrollbar
-        frame_log = tk.Frame(self.frame_direita)
-        frame_log.pack(padx=10, pady=5, fill="both", expand=True)
-
-        scrollbar_log = tk.Scrollbar(frame_log)
-        scrollbar_log.pack(side="right", fill="y")
-
-        self.text_log = tk.Text(frame_log, height=10, width=36, 
-                                wrap="word", yscrollcommand=scrollbar_log.set, font=("Arial", 8))
+    def criar_secao_eventos(self):
+        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        
+        tk.Label(frame, text="Eventos", 
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 8))
+        
+        log_frame = tk.Frame(frame, bg="#f9fafb")
+        log_frame.pack(fill="both", expand=True)
+        
+        scrollbar = tk.Scrollbar(log_frame, bg="#e5e7eb")
+        scrollbar.pack(side="right", fill="y")
+        
+        self.text_log = tk.Text(
+            log_frame,
+            height=10,
+            wrap="word",
+            yscrollcommand=scrollbar.set,
+            font=("Inter", 9),
+            bg="#f9fafb",
+            fg="#6b7280",
+            insertbackground="#3b82f6",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=8,
+            pady=8
+        )
         self.text_log.pack(side="left", fill="both", expand=True)
-        scrollbar_log.config(command=self.text_log.yview)
+        scrollbar.config(command=self.text_log.yview)
 
-        # controlos
-        frame_botoes = tk.Frame(self.frame_direita, bg="#d6ede0")
-        frame_botoes.pack(padx=10, pady=10, fill="x")
-
-        btn_iniciar = tk.Button(frame_botoes, text="▶ Iniciar Simulação", 
-                                command=self.executar_simulacao,
-                                bg="#4CAF50", fg="white", font=("Arial", 11, "bold"),
-                                relief="raised", bd=2, cursor="hand2")
-        btn_iniciar.pack(fill="x", pady=3)
-
-        btn_pausar = tk.Button(frame_botoes, text="⏸ Pausar", 
-                            command=self.pausar_simulacao,
-                            bg="#FF9800", fg="white", font=("Arial", 10),
-                            relief="raised", bd=2, cursor="hand2")
-        btn_pausar.pack(fill="x", pady=3)
+    def criar_botoes(self):
+        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame.pack(fill="x", padx=20, pady=15)
+        
+        # Botão Iniciar
+        btn_iniciar = tk.Button(
+            frame,
+            text="▶ Iniciar Simulação",
+            command=self.executar_simulacao,
+            bg="#10b981",
+            fg="#ffffff",
+            font=("Inter", 11, "bold"),
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            activebackground="#059669",
+            activeforeground="#ffffff",
+            padx=20,
+            pady=12
+        )
+        btn_iniciar.pack(fill="x", pady=(0, 8))
+        
+        # Botão Pausar
+        btn_pausar = tk.Button(
+            frame,
+            text="⏸ Pausar",
+            command=self.pausar_simulacao,
+            bg="#ef4444",
+            fg="#ffffff",
+            font=("Inter", 10),
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            activebackground="#dc2626",
+            padx=20,
+            pady=10
+        )
+        btn_pausar.pack(fill="x")
 
     def atualizar_algoritmo(self):
-        """Chamado quando o utilizador muda o algoritmo selecionado"""
         algoritmo = self.algoritmo_var.get()
         self.simulador.gestor.definir_algoritmo_procura(algoritmo)
-        self.registar_evento(f"Algoritmo alterado para: {algoritmo.upper()}")
-        
-        
+        self.registar_evento(f"Algoritmo alterado: {algoritmo.upper()}")
+
     def registar_evento(self, msg: str):
-        """Escreve mensagem no log e força refresh leve."""
         self.text_log.insert(tk.END, f"{msg}\n")
         self.text_log.see(tk.END)
-        # atualização não bloqueante
         try:
             self.root.update_idletasks()
         except tk.TclError:
             pass
 
-    # Adiciona pedido à lista lateral e desenha no mapa.
     def mostrar_pedido(self, pedido):
+        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino}"
         items = list(self.list_pedidos.get(0, tk.END))
-        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
         if display not in items:
             self.list_pedidos.insert(tk.END, display)
         self.mapa.desenhar_pedido(pedido)
 
-    """Remove pedido da lista e mapa"""
     def remover_pedido_visual(self, pedido):
+        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino}"
         items = list(self.list_pedidos.get(0, tk.END))
-        display = f"{pedido.id_pedido}: {pedido.posicao_inicial} → {pedido.posicao_destino} [{pedido.pref_ambiental}]"
         if display in items:
-            idx = items.index(display)
-            self.list_pedidos.delete(idx)
+            self.list_pedidos.delete(items.index(display))
         self.mapa.remover_pedido(pedido)
 
 
-    # Atualiza mapa e métricas (chamado a cada segundo pelo root.after)."""
     def atualizar(self):
         m = self.simulador.gestor.metricas
         metrics = m.calcular_metricas()
-        algo_nome = self.simulador.gestor.algoritmo_procura.upper()
-
-        text = (
-            f"Algoritmo: {algo_nome}\n"
-            f"Tempo: {self.simulador.tempo_atual}/{self.simulador.duracao_total} min\n"
-
-            f"\n PEDIDOS:\n"
-            f"Pedidos completos: {metrics['pedidos_servicos']}\n"
-            f"Pedidos rejeitados: {metrics['pedidos_rejeitados']}\n"
-            f"Taxa sucesso: {metrics['taxa_sucesso']}%\n"
-            f"Tempo médio: {metrics['tempo_medio_resposta']} min\n"
-
-            f"\n OPERAÇÃO:\n"
-            f"Km totais: {metrics['km_totais']:.1f}\n"
-            f"Km vazios: {metrics['km_sem_passageiros']:.1f}\n"
-            f"% vazio: {metrics['perc_km_vazio']}%\n"
-
-            f"Emissões totais: {metrics['emissoes_totais']:.2f}\n"
-            f"Custo total: {metrics['custo_total']:.2f}\n"
+        
+        # Tempo
+        self.label_tempo.config(
+            text=f"Tempo: {self.simulador.tempo_atual}/{self.simulador.duracao_total} min"
         )
-        self.label_metricas.config(text=text)
-
+        
+        # Métricas
+        total = metrics['pedidos_servicos'] + metrics['pedidos_rejeitados']
+        self.metricas_labels["pedidos"].config(text=f"{metrics['pedidos_servicos']}/{total}")
+        self.metricas_labels["taxa"].config(text=f"{metrics['taxa_sucesso']:.0f}%")
+        self.metricas_labels["km"].config(text=f"{metrics['km_totais']:.0f}")
+        self.metricas_labels["custo"].config(text=f"€{metrics['custo_total']:.0f}")
+        
+        # Mapa
         pedidos = [p for p in self.simulador.gestor.pedidos_pendentes 
-                   if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)]
+                  if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)]
         self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos)
 
         try:
@@ -188,52 +288,41 @@ class InterfaceTaxiGreen:
             pass
 
 
-    # Se a simulação já terminou, reinicia automaticamente
     def executar_simulacao(self):
         if self.simulador.tempo_atual >= self.simulador.duracao_total:
             self.reiniciar_simulacao()
         
-        self.registar_evento(f" Iniciar simulação com {self.simulador.gestor.algoritmo_procura.upper()}")
+        self.registar_evento(f"Simulação iniciada com {self.simulador.gestor.algoritmo_procura.upper()}")
         self.simulador.executar()
 
-
-    """Reinicia a simulação do zero (chamado automaticamente se já terminou)"""
     def reiniciar_simulacao(self):
         self.simulador.tempo_atual = 0
-        
-        # Reset dos pedidos
         self.simulador.gestor.pedidos_pendentes = []
         self.simulador.gestor.pedidos_concluidos = []
         
-        # Reagendar todos os pedidos
         self.simulador.fila_pedidos = []
         for pedido in self.simulador.pedidos_todos:
             pedido.estado = EstadoPedido.PENDENTE
             pedido.veiculo_atribuido = None
             heapq.heappush(self.simulador.fila_pedidos, 
-                          (pedido.instante_pedido, -pedido.prioridade, pedido.id_pedido, pedido))
+                          (pedido.instante_pedido, -pedido.prioridade, 
+                           pedido.id_pedido, pedido))
         
-        # Reset dos veículos (voltar às posições iniciais)
         for v in self.simulador.gestor.veiculos.values():
             v.estado = EstadoVeiculo.DISPONIVEL
             v.rota = []
             v.indice_rota = 0
             v.km_sem_passageiros = 0.0
-            v.id_pedido_atual = None
+            v.pedido_atual = None
             v.tempo_ocupado_ate = 0
-
-        # Reset das métricas
+        
         self.simulador.gestor.metricas = Metricas()
-        
-        # Limpar interface
         self.list_pedidos.delete(0, tk.END)
-        
-        self.registar_evento(f"Simulação reiniciada automaticamente")
+        self.registar_evento("Simulação reiniciada")
 
-    # TODO: implementar pausa
     def pausar_simulacao(self):
-        self.registar_evento("Pausa solicitada (não implementada).")
+        self.registar_evento("Pausa não implementada")
 
-    """Inicia loop da GUI"""
     def iniciar(self):
+        """Inicia loop GUI"""
         self.root.mainloop()
