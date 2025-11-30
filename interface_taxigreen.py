@@ -10,6 +10,8 @@ class InterfaceTaxiGreen:
 
     def __init__(self, simulador):
         self.simulador = simulador
+        self.simulacao_ativa = False
+        self.simulacao_pausada = False
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
         self.root.geometry("1300x800")
