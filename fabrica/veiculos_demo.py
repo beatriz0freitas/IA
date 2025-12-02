@@ -10,16 +10,24 @@ from gestao.gestor_frota import GestorFrota
 class VeiculosDemo:
     @staticmethod
     def criar_frota_demo(gestor: GestorFrota) -> GestorFrota:
+
+        nos_disponiveis = list(gestor.grafo.nos.keys())
+        if len(nos_disponiveis) < 2:
+            raise ValueError("O grafo do gestor não tem nós suficientes. Crie o grafo primeiro.")
+        
         v1 = VeiculoEletrico(
             id_veiculo="E1",
-            posicao="A",
+            posicao=nos_disponiveis[0],
             autonomia_km=20,
             autonomiaMax_km=20,
             capacidade_passageiros=4,
             custo_km=0.10,
             estado=EstadoVeiculo.DISPONIVEL,
             km_total=0,
-            id_rota="R1",
+            km_sem_passageiros=0,
+            indice_rota=1,
+            id_pedido_atual=None,
+            tempo_ocupado_ate=0,
             rota=[],
             tempo_recarregamento_min=8,
             capacidade_bateria_kWh=45,
@@ -28,14 +36,17 @@ class VeiculosDemo:
 
         v2 = VeiculoCombustao(
             id_veiculo="C1",
-            posicao="C",
+            posicao=nos_disponiveis[2] if len(nos_disponiveis) > 2 else nos_disponiveis[1],
             autonomia_km=35,
             autonomiaMax_km=35,
             capacidade_passageiros=4,
             custo_km=0.20,
             estado=EstadoVeiculo.DISPONIVEL,
             km_total=0,
-            id_rota="R2",
+            km_sem_passageiros=0,
+            indice_rota=3,
+            id_pedido_atual=None,
+            tempo_ocupado_ate=0,
             rota=[],
             tempo_reabastecimento_min=6,
             emissao_CO2_km=0.12
@@ -46,6 +57,7 @@ class VeiculosDemo:
 
         return gestor
 
+    # todo: acho que esta funcao pode ser delete - nao faz sentido neste enunciado
     @staticmethod
     def criar_frota_mista(gestor: GestorFrota, n_eletricos: int, n_combustao: int) -> GestorFrota:
 
@@ -65,7 +77,6 @@ class VeiculosDemo:
                 custo_km=0.1,
                 estado=EstadoVeiculo.DISPONIVEL,
                 km_total=0,
-                id_rota=f"RE{i}",
                 rota=[],
                 tempo_recarregamento_min=random.randint(5, 15),
                 capacidade_bateria_kWh=random.uniform(30, 70),
@@ -85,7 +96,6 @@ class VeiculosDemo:
                 custo_km=0.2,
                 estado=EstadoVeiculo.DISPONIVEL,
                 km_total=0,
-                id_rota=f"RC{i}",
                 rota=[],
                 tempo_reabastecimento_min=random.randint(5, 12),
                 emissao_CO2_km=round(random.uniform(0.1, 0.2), 3)
