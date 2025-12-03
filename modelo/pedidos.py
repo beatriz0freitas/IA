@@ -24,7 +24,7 @@ class Pedido:
     passageiros: int
     instante_pedido: int                        # instante em minutos na simulação
     prioridade: int                             # maior valor = mais urgente
-    pref_ambiental: Literal["eletrico","combustao"]
+    pref_ambiental: Literal["eletrico","combustao","qualquer"]
     estado: EstadoPedido
     veiculo_atribuido: str                      # id do veículo atribuído ao pedido
     instante_atendimento: Optional[int] = None     
@@ -32,8 +32,8 @@ class Pedido:
 
     # Validação automática da preferência ambiental.
     def __post_init__(self):
-        if self.pref_ambiental not in ("eletrico", "combustao"):
-            raise ValueError( f"Preferência ambiental inválida: {self.pref_ambiental}." "Deve ser 'eletrico' ou 'combustao'." )
+        if self.pref_ambiental not in ("eletrico", "combustao", "qualquer"):
+            raise ValueError( f"Preferência ambiental inválida: {self.pref_ambiental}." "Deve ser 'eletrico', 'combustao' ou 'qualquer'." )
         
         if self.passageiros <= 0:
             raise ValueError( f"Número de passageiros inválido, recebido: {self.passageiros}.")

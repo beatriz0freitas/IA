@@ -31,8 +31,13 @@ def a_star_search(grafo: Grafo, start_id: str, goal_id: str) -> Tuple[float, Lis
         
         for aresta in grafo.vizinhos(current):
             no_destino = aresta.no_destino
-            custo = aresta.tempoViagem_min
-            tentative_g = g_score[current] + aresta.tempoViagem_min
+            custo = aresta.tempo_real()  # Usa tempo considerando trânsito
+
+            # Ignora arestas bloqueadas
+            if custo == float('inf'):
+                continue
+
+            tentative_g = g_score[current] + custo
 
             if no_destino not in g_score or tentative_g < g_score[no_destino]:
                 came_from[no_destino] = current

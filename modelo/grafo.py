@@ -18,15 +18,22 @@ class No:
     id_no: str
     posicaox: float
     posicaoy: float
-    tipo: TipoNo          
+    tipo: TipoNo
+    disponivel: bool = True  # False se estação/posto fora de serviço          
 
 @dataclass
 class Aresta:
     no_destino: str
     distancia_km: float
     tempoViagem_min: float
-    # congestion: float -> multiplier do tempo de travessia 0-1
-    # blocked: bool -> determina se estrada está bloqueada (para construção por exemplo)
+    congestion: float = 1.0  # Multiplicador de trânsito (1.0 = normal, 2.0 = dobro do tempo)
+    blocked: bool = False  # True se estrada bloqueada
+
+    def tempo_real(self) -> float:
+        """Retorna tempo de viagem considerando congestionamento"""
+        if self.blocked:
+            return float('inf')
+        return self.tempoViagem_min * self.congestion
 
 class Grafo:
     def __init__(self):

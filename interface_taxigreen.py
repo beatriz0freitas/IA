@@ -14,62 +14,84 @@ class InterfaceTaxiGreen:
         self.root.title("TaxiGreen Simulator")
         self.root.geometry("1300x800")
         self.root.configure(bg="#f9fafb")
-        
+        self.simulacao_ativa = False
+
         self.criar_layout_principal()
         self.root.after(1000, self.atualizar)
 
     def criar_layout_principal(self):
-        
+
         # ===== MAPA =====
         self.frame_mapa = tk.Frame(self.root, bg="#f9fafb")
         self.frame_mapa.pack(side="left", fill="both", expand=True, padx=10, pady=10)
 
         self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo, width=900, height=700)
-        
+
         # ===== SIDEBAR =====
         self.frame_direita = tk.Frame(self.root, bg="#ffffff", width=350)
-        self.frame_direita.pack(side="right", fill="y", padx=(0, 10), pady=10)
+        self.frame_direita.pack(side="right", fill="both", padx=(0, 10), pady=10)
         self.frame_direita.pack_propagate(False)
-        
+
+        # Container com scroll para conteúdo
+        self.canvas_scroll = tk.Canvas(self.frame_direita, bg="#ffffff", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self.frame_direita, orient="vertical", command=self.canvas_scroll.yview)
+        self.frame_conteudo = tk.Frame(self.canvas_scroll, bg="#ffffff")
+
+        self.frame_conteudo.bind(
+            "<Configure>",
+            lambda e: self.canvas_scroll.configure(scrollregion=self.canvas_scroll.bbox("all"))
+        )
+
+        self.canvas_scroll.create_window((0, 0), window=self.frame_conteudo, anchor="nw")
+        self.canvas_scroll.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side="right", fill="y")
+        self.canvas_scroll.pack(side="left", fill="both", expand=True)
+
         self.criar_header()
         self.criar_secao_algoritmo()
         self.criar_secao_metricas()
         self.criar_secao_pedidos()
         self.criar_secao_eventos()
+
+        # Botões fixos no fundo (fora do scroll)
+        self.frame_botoes_fixo = tk.Frame(self.frame_direita, bg="#ffffff")
+        self.frame_botoes_fixo.pack(side="bottom", fill="x", before=self.canvas_scroll)
+
         self.criar_botoes()
 
     def criar_header(self):
-        header = tk.Frame(self.frame_direita, bg="#ffffff")
+        header = tk.Frame(self.frame_conteudo, bg="#ffffff")
         header.pack(fill="x", padx=20, pady=15)
-        
-        tk.Label(header, text="TaxiGreen", 
+
+        tk.Label(header, text="TaxiGreen",
                 bg="#ffffff", fg="#111827",
                 font=("Inter", 18, "bold")).pack(anchor="w")
-        
-        self.label_tempo = tk.Label(header, text="Tempo: 0/12 min", 
+
+        self.label_tempo = tk.Label(header, text="Tempo: 0/12 min",
                                    bg="#ffffff", fg="#6b7280",
                                    font=("Inter", 11))
         self.label_tempo.pack(anchor="w", pady=(2, 0))
-        
-        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=(0, 15))
+
+        tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=(0, 15))
 
     def criar_secao_algoritmo(self):
-        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame = tk.Frame(self.frame_conteudo, bg="#ffffff")
         frame.pack(fill="x", padx=20, pady=(0, 15))
-        
-        tk.Label(frame, text="Algoritmo de Procura", 
+
+        tk.Label(frame, text="Algoritmo de Procura",
                 bg="#ffffff", fg="#374151",
                 font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 8))
-        
+
         self.algoritmo_var = tk.StringVar(value="astar")
-        
+
         algoritmos = [
             ("A* (A-Estrela)", "astar"),
             ("UCS (Uniform Cost)", "ucs"),
             ("BFS (Breadth-First)", "bfs"),
             ("DFS (Depth-First)", "dfs")
         ]
-        
+
         for nome, valor in algoritmos:
             tk.Radiobutton(
                 frame,
@@ -86,11 +108,11 @@ class InterfaceTaxiGreen:
                 highlightthickness=0,
                 padx=5
             ).pack(anchor="w", pady=2)
-        
-        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
+
+        tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
     def criar_secao_metricas(self):
-        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame = tk.Frame(self.frame_conteudo, bg="#ffffff")
         frame.pack(fill="x", padx=20, pady=(0, 15))
         
         tk.Label(frame, text="Métricas", 
@@ -130,10 +152,10 @@ class InterfaceTaxiGreen:
         grid.columnconfigure(0, weight=1)
         grid.columnconfigure(1, weight=1)
         
-        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
+        tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
     def criar_secao_pedidos(self):
-        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame = tk.Frame(self.frame_conteudo, bg="#ffffff")
         frame.pack(fill="both", expand=False, padx=20, pady=(0, 15))
         
         tk.Label(frame, text="Pedidos Ativos", 
@@ -161,10 +183,10 @@ class InterfaceTaxiGreen:
         self.list_pedidos.pack(side="left", fill="both", expand=True)
         scrollbar.config(command=self.list_pedidos.yview)
         
-        tk.Frame(self.frame_direita, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
+        tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
     def criar_secao_eventos(self):
-        frame = tk.Frame(self.frame_direita, bg="#ffffff")
+        frame = tk.Frame(self.frame_conteudo, bg="#ffffff")
         frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
         
         tk.Label(frame, text="Eventos", 
@@ -195,9 +217,11 @@ class InterfaceTaxiGreen:
         scrollbar.config(command=self.text_log.yview)
 
     def criar_botoes(self):
-        frame = tk.Frame(self.frame_direita, bg="#ffffff")
-        frame.pack(fill="x", padx=20, pady=15)
-        
+        frame = self.frame_botoes_fixo
+
+        # Separador antes dos botões
+        tk.Frame(frame, bg="#e5e7eb", height=1).pack(fill="x", pady=(0, 15))
+
         # Botão Iniciar
         btn_iniciar = tk.Button(
             frame,
@@ -214,7 +238,7 @@ class InterfaceTaxiGreen:
             padx=20,
             pady=12
         )
-        btn_iniciar.pack(fill="x", pady=(0, 8))
+        btn_iniciar.pack(fill="x", padx=20, pady=(0, 8))
         
         # Botão Pausar
         btn_pausar = tk.Button(
@@ -231,7 +255,7 @@ class InterfaceTaxiGreen:
             padx=20,
             pady=10
         )
-        btn_pausar.pack(fill="x")
+        btn_pausar.pack(fill="x", padx=20, pady=(0, 15))
 
     def atualizar_algoritmo(self):
         algoritmo = self.algoritmo_var.get()
@@ -291,9 +315,62 @@ class InterfaceTaxiGreen:
     def executar_simulacao(self):
         if self.simulador.tempo_atual >= self.simulador.duracao_total:
             self.reiniciar_simulacao()
-        
+
+        self.simulacao_ativa = True
         self.registar_evento(f"Simulação iniciada com {self.simulador.gestor.algoritmo_procura.upper()}")
-        self.simulador.executar()
+        self.executar_passo()
+
+    def executar_passo(self):
+        """Executa um passo da simulação (1 minuto)"""
+        if not self.simulacao_ativa or self.simulador.tempo_atual > self.simulador.duracao_total:
+            if self.simulador.tempo_atual > self.simulador.duracao_total:
+                self.finalizar_simulacao()
+            return
+
+        # Atualiza trânsito
+        if self.simulador.gestor_transito:
+            self.simulador.gestor_transito.atualizar_transito(self.simulador.tempo_atual)
+
+        # Simula falhas aleatórias em estações (a cada 5 minutos)
+        if self.simulador.gestor_falhas and self.simulador.tempo_atual % 5 == 0:
+            falhas = self.simulador.gestor_falhas.simular_falha_aleatoria(self.simulador.tempo_atual)
+            for est_id in falhas:
+                self.registar_evento(f"[t={self.simulador.tempo_atual}] ⚠️ FALHA: {est_id} OFFLINE")
+
+        # Processa simulação (1 minuto)
+        self.simulador.processar_pedidos_novos()
+        self.simulador.atribuir_pedidos_pendentes()
+        self.simulador.mover_veiculos()
+        self.simulador.verificar_conclusao_pedidos()
+        self.simulador.verificar_recargas()
+
+        self.simulador.tempo_atual += 1
+
+        # Agenda próximo passo (executa a cada 500ms = 0.5 segundos)
+        self.root.after(500, self.executar_passo)
+
+    def finalizar_simulacao(self):
+        """Finaliza simulação e mostra resultados"""
+        self.simulacao_ativa = False
+        metricas = self.simulador.gestor.metricas.calcular_metricas()
+
+        self.registar_evento("\n" + "="*50)
+        self.registar_evento("SIMULAÇÃO TERMINADA")
+        self.registar_evento("="*50)
+        self.registar_evento(f"Pedidos servidos: {metricas['pedidos_servicos']}")
+        self.registar_evento(f"Pedidos rejeitados: {metricas['pedidos_rejeitados']}")
+        self.registar_evento(f"Taxa de sucesso: {metricas['taxa_sucesso']}%")
+        self.registar_evento(f"Tempo médio resposta: {metricas['tempo_medio_resposta']:.1f} min")
+        self.registar_evento(f"Custo total: €{metricas['custo_total']:.2f}")
+        self.registar_evento(f"Emissões CO₂: {metricas['emissoes_totais']:.2f} kg")
+
+        # Estatísticas de falhas
+        if self.simulador.gestor_falhas:
+            estado = self.simulador.gestor_falhas.obter_estado_estacoes()
+            self.registar_evento("\n--- ESTATÍSTICAS DE FALHAS ---")
+            self.registar_evento(f"Total de eventos: {estado['total_falhas_historico']}")
+            self.registar_evento(f"Estações recarga: {estado['estacoes_recarga']['taxa_disponibilidade']}% disponibilidade")
+            self.registar_evento(f"Postos abastecimento: {estado['postos_abastecimento']['taxa_disponibilidade']}% disponibilidade")
 
     def reiniciar_simulacao(self):
         self.simulador.tempo_atual = 0
@@ -321,7 +398,13 @@ class InterfaceTaxiGreen:
         self.registar_evento("Simulação reiniciada")
 
     def pausar_simulacao(self):
-        self.registar_evento("Pausa não implementada")
+        if self.simulacao_ativa:
+            self.simulacao_ativa = False
+            self.registar_evento("⏸ Simulação PAUSADA")
+        else:
+            self.simulacao_ativa = True
+            self.registar_evento("▶ Simulação RETOMADA")
+            self.executar_passo()
 
     def iniciar(self):
         """Inicia loop GUI"""
