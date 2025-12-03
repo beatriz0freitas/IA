@@ -31,7 +31,13 @@ def uniform_cost_search(graph: Grafo, start_id: str, goal_id: str) -> Tuple[floa
 
         for aresta in graph.vizinhos(current):
             vizinho = aresta.no_destino
-            novo_custo = cost_so_far[current] + aresta.tempoViagem_min
+            custo = aresta.tempo_real()  # Usa tempo considerando trânsito
+
+            # Ignora arestas bloqueadas
+            if custo == float('inf'):
+                continue
+
+            novo_custo = cost_so_far[current] + custo
             if vizinho not in cost_so_far or novo_custo < cost_so_far[vizinho]:
                 cost_so_far[vizinho] = novo_custo
                 came_from[vizinho] = current
