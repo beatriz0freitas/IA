@@ -88,15 +88,15 @@ class GestorFrota:
     def calcular_custo_rota(self, caminho: List[str]) -> float:
         if not caminho or len(caminho) < 2:
             return 0.0
-        
+
         custo_total = 0.0
         for i in range(len(caminho) - 1):
             try:
                 aresta = self.grafo.get_aresta(caminho[i], caminho[i + 1])
-                custo_total += aresta.tempoViagem_min
+                custo_total += aresta.tempo_real()  # Considera trânsito
             except ValueError:
                 return float('inf')  # Caminho inválido
-        
+
         return custo_total
 
 
@@ -137,7 +137,13 @@ class GestorFrota:
         return self.veiculos.get(id_veiculo)
 
     def tentar_recarregar(self, v: Veiculo) -> bool:
-        tipo_no = self.grafo.nos[v.posicao].tipo
+        no = self.grafo.nos[v.posicao]
+
+        # Verifica se estação está disponível
+        if not no.disponivel:
+            return False
+
+        tipo_no = no.tipo
         return v.repor_autonomia(tipo_no)
 
 
@@ -243,9 +249,9 @@ class GestorFrota:
     # Tenta atribuir pedido incluindo paragem para recarga
     def atribuir_com_recarga(self, pedido: Pedido, veiculo: Veiculo, tempo_atual: int) -> Optional[Veiculo]:
 
-        # Encontra estação de recarga mais próxima
-        estacoes = [no_id for no_id, no in self.grafo.nos.items() 
-                    if veiculo.pode_carregar_abastecer(no.tipo)]
+        # Encontra estação de recarga mais próxima (que esteja disponível)
+        estacoes = [no_id for no_id, no in self.grafo.nos.items()
+                    if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
         
         if not estacoes:
             print(f"ERRO: Sem estações de {veiculo.tipo_veiculo()} disponíveis")
@@ -294,13 +300,13 @@ class GestorFrota:
 
         if veiculo.estado != EstadoVeiculo.DISPONIVEL:
             return False
-        
+
         if veiculo.autonomia_km > (threshold * veiculo.autonomiaMax_km):
             return False
-        
-        # Encontra estação mais próxima
-        estacoes = [no_id for no_id, no in self.grafo.nos.items() 
-                   if veiculo.pode_carregar_abastecer(no.tipo)]
+
+        # Encontra estação mais próxima (que esteja disponível)
+        estacoes = [no_id for no_id, no in self.grafo.nos.items()
+                   if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
         
         if not estacoes:
             return False

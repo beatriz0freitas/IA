@@ -16,11 +16,16 @@ def main():
     # Criação da frota e pedidos
     VeiculosDemo.criar_frota_demo(gestor)
 
-    simulador = Simulador(gestor, duracao_total=12)
+    simulador = Simulador(gestor, duracao_total=60)  # 60 minutos = 1 hora
     interface = InterfaceTaxiGreen(simulador)
     simulador.interface = interface
 
     PedidosDemo.criar_pedidos_demo(simulador)
+
+    print(f"\n Pedidos agendados: {len(simulador.fila_pedidos)}")
+    print(f" Duração da simulação: {simulador.duracao_total} minutos")
+    print(f" Trânsito dinâmico: {'Ativo' if simulador.gestor_transito else 'Desativado'}")
+    print(f" Falhas em estações: {'Ativo (prob=15%)' if simulador.gestor_falhas else 'Desativado'}\n")
 
     interface.iniciar()
 
