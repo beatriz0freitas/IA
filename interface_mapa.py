@@ -227,58 +227,51 @@ class InterfaceMapa(tk.Canvas):
     def atualizar_veiculos(self, veiculos: dict):
         self.delete("veiculos")
         self.delete("rotas")
-        
-        self.rotas_pedidos.clear()
 
         for v in veiculos.values():
             x, y = self._pos(v.posicao)
             
-            # Cor por tipo
+            # Cores por tipo
             if v.tipo_veiculo() == "eletrico":
-                cor = "#0ea5e9"
+                cor = "#0ea5e9"  # Azul cyan
             else:
-                cor = "#f59e0b"
+                cor = "#f59e0b"  # Laranja
             
             # Cor por estado
             if v.estado.value in ("recarregando", "reabastecendo"):
-                cor = "#fbbf24"
+                cor = "#fbbf24"  # Amarelo
             elif v.estado.value == "a_servico":
-                cor = "#10b981"
+                cor = "#10b981"  # Verde
             
+            # Desenha rota (atrás)
             if hasattr(v, "rota") and v.rota and len(v.rota) > 1:
                 coords = [self._pos(node) for node in v.rota]
                 
-                if v.pedido_atual and v.pedido_atual in self.cores_pedidos:
-                    cor_rota = self.cores_pedidos[v.pedido_atual]
-                else:
-                    cor_rota = cor
-                
-                # Armazena informação da rota para hover
-                if v.pedido_atual:
-                    self.rotas_pedidos[v.pedido_atual] = {
-                        'coords': coords,
-                        'veiculo': v,
-                        'cor': cor_rota
-                    }
-                
-                # Desenha linha tracejada
+                # Linha tracejada colorida
                 for i in range(len(coords) - 1):
-                    linha_id = self.create_line(
-                        coords[i][0], coords[i][1], 
-                        coords[i+1][0], coords[i+1][1], 
-                        fill=cor_rota, dash=(8, 4), width=4, 
-                        tags=("rotas", f"rota_{v.id_veiculo}", f"rota_pedido_{v.pedido_atual}" if v.pedido_atual else "")
-                    )
+                    self.create_line(coords[i][0], coords[i][1], 
+                                   coords[i+1][0], coords[i+1][1], 
+                                   fill=cor, dash=(8, 4), width=3, 
+                                   tags="rotas")
             
+            # Sombra
+            self.create_rectangle(x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2, 
+                                x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2,
+                                fill="#d1d5db", outline="",
+                                tags="veiculos")
+            
+            # Veículo
             self.create_rectangle(x - VEHICLE_SIZE, y - VEHICLE_SIZE, 
                                 x + VEHICLE_SIZE, y + VEHICLE_SIZE,
                                 fill=cor, outline="#ffffff", width=2,
                                 tags=("veiculos", f"veiculo_{v.id_veiculo}"))
             
+            # Label
             self.create_text(x, y + VEHICLE_SIZE + 12, text=v.id_veiculo, 
-                           font=("Arial", 8, "bold"), 
+                           font=("Inter", 8, "bold"), 
                            fill="#374151",
                            tags="veiculos")
+
 
     # Mostra tooltip apenas ao passar o rato sobre elemento
     def on_mouse_move(self, event):

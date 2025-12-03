@@ -125,19 +125,6 @@ class PedidosDemo:
             tempo_max_espera=20
         )
 
-        p3 = Pedido(
-            id_pedido="P3",
-            posicao_inicial="Universidade",
-            posicao_destino="Parque_Tec",
-            passageiros=1,
-            instante_pedido=5,
-            prioridade=1,
-            pref_ambiental="eletrico",
-            estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None,
-            instante_atendimento=None
-        )
-
         simulador.agendar_pedido(p1)
         simulador.agendar_pedido(p2)
         simulador.agendar_pedido(p3)

@@ -230,7 +230,7 @@ class Simulador:
                 if not veiculo.rota or veiculo.indice_rota >= len(veiculo.rota) - 1:
                     pedido.estado = EstadoPedido.CONCLUIDO
                     veiculo.estado = EstadoVeiculo.DISPONIVEL
-                    veiculo.pedido_atual = None
+                    veiculo.id_pedido_atual = None
                     
                     tempo_resposta = self.tempo_atual - pedido.instante_pedido
                     self.gestor.metricas.registar_pedido(pedido, tempo_resposta)
