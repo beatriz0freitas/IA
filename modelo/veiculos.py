@@ -46,25 +46,34 @@ class Veiculo(ABC):
         if not com_passageiros:
             self.km_sem_passageiros += distancia_km
 
-    #suporta recarga parcial e tempo de orecarga proporcional
     def repor_autonomia(self, tipo_no:TipoNo, tempo_atual: int, recarga_parcial: float = 1.0):
+        """
+        Suporta recarga/reabastecimento parcial ou total.
+        Retorna: (sucesso, custo_operacao, tempo_ocupacao)
+        """
         if not self.pode_carregar_abastecer(tipo_no):
-            return False
-        
+            return False, 0.0, 0
+
         capacidade_recarregar = (self.autonomiaMax_km - self.autonomia_km) * recarga_parcial
-        self.autonomia_km += capacidade_recarregar
+        self.autonomia_km = min(self.autonomiaMax_km, self.autonomia_km + capacidade_recarregar)
 
         if self.tipo_veiculo() == "eletrico":
             tempo_base = self.tempo_recarregamento_min
             self.estado = EstadoVeiculo.A_CARREGAR
+            # Custo de recarga elétrica (€/kWh)
+            kWh_necessarios = capacidade_recarregar * self.consumo_kWh_km
+            custo_recarga = kWh_necessarios * 0.15  # €0.15 por kWh
         else:
             tempo_base = self.tempo_reabastecimento_min
             self.estado = EstadoVeiculo.A_ABASTECER
+            # Custo de reabastecimento (mais caro)
+            litros_necessarios = capacidade_recarregar * 0.08  # ~8L/100km
+            custo_recarga = litros_necessarios * 1.6  # €1.60 por litro
 
         tempo_ocupacao = int(tempo_base * recarga_parcial)
         self.tempo_ocupado_ate = tempo_atual + tempo_ocupacao
 
-        return True
+        return True, custo_recarga, tempo_ocupacao
     
     def definir_rota(self, rota: list[str]):
         self.rota = rota
@@ -96,9 +105,15 @@ class Veiculo(ABC):
         
         return True, chegou
     
-    #todo: verifiar todas variaveis que influenciam custp
     def custo_operacao(self, distancia_km: float) -> float:
-        return self.custo_km * distancia_km
+        """
+        Calcula custo total de operação considerando:
+        - Custo por km (energia/combustível)
+        - Desgaste do veículo
+        """
+        custo_base = self.custo_km * distancia_km
+        custo_desgaste = 0.02 * distancia_km  # Desgaste fixo por km
+        return custo_base + custo_desgaste
 
     @abstractmethod
     def tipo_veiculo(self) -> str:
@@ -116,36 +131,53 @@ class Veiculo(ABC):
 
 @dataclass(kw_only=True)
 class VeiculoCombustao(Veiculo):
-    tempo_reabastecimento_min: int              
-    emissao_CO2_km: float   
+    tempo_reabastecimento_min: int
+    emissao_CO2_km: float
 
     def tipo_veiculo(self) -> str:
         return "combustao"
 
     def pode_carregar_abastecer(self, tipo_no: TipoNo) -> bool:
         return tipo_no == TipoNo.POSTO_ABASTECIMENTO
-    
+
     def calcula_emissao(self, distancia_km: float) -> float:
         return max(0.0, distancia_km) * self.emissao_CO2_km
 
-    #todo: custos
-    #todo: reabastecimento nao ser total
-    #todo: tempo de reabastecimento afetar a simulação
+    def custo_operacao(self, distancia_km: float) -> float:
+        """
+        Custo de combustão inclui:
+        - Custo de combustível (maior que elétrico)
+        - Desgaste do motor (maior que elétrico)
+        - Taxa ambiental (penalização por emissões)
+        """
+        custo_base = self.custo_km * distancia_km
+        custo_desgaste = 0.03 * distancia_km  # Maior desgaste que elétrico
+        taxa_ambiental = self.emissao_CO2_km * distancia_km * 0.5  # Taxa por CO2
+        return custo_base + custo_desgaste + taxa_ambiental
 
 @dataclass(kw_only=True)
 class VeiculoEletrico(Veiculo):
-    tempo_recarregamento_min: int  
-    capacidade_bateria_kWh: float    
+    tempo_recarregamento_min: int
+    capacidade_bateria_kWh: float
     consumo_kWh_km: float
 
     def tipo_veiculo(self) -> str:
         return "eletrico"
-    
+
     def pode_carregar_abastecer(self, tipo_no):
         return tipo_no == TipoNo.ESTACAO_RECARGA
-    
+
     def calcula_emissao(self, distancia_km: float) -> float:
         return 0.0
 
-    #todo: custo
-    #todo: carregamento nao ser total
+    def custo_operacao(self, distancia_km: float) -> float:
+        """
+        Custo elétrico inclui:
+        - Custo de energia (mais barato que combustível)
+        - Desgaste reduzido (motores elétricos têm menos desgaste)
+        - Bónus ambiental (incentivo para veículos limpos)
+        """
+        custo_base = self.custo_km * distancia_km
+        custo_desgaste = 0.01 * distancia_km  # Menor desgaste
+        bonus_ambiental = -0.02 * distancia_km  # Incentivo verde
+        return max(0.0, custo_base + custo_desgaste + bonus_ambiental)

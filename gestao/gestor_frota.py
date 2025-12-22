@@ -23,17 +23,6 @@ class GestorFrota:
         self.metricas = Metricas()
         self.algoritmo_procura = "astar"
 
-    def validar_grafo(self):
-        if not self.grafo.nos:
-            raise ValueError("Grafo vazio - adicione nós antes de criar GestorFrota")
-        
-        # Verifica se todos os nós têm pelo menos uma conexão
-        nos_isolados = [id_no for id_no in self.grafo.nos 
-                        if not self.grafo.adjacentes.get(id_no)]
-        if nos_isolados:
-            print(f"Erro: Nós isolados detectados: {nos_isolados}")
-
-
 
     # ==========================================================
     # Gestão de algoritmos de procura
@@ -136,16 +125,6 @@ class GestorFrota:
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
 
-    def tentar_recarregar(self, v: Veiculo) -> bool:
-        no = self.grafo.nos[v.posicao]
-
-        # Verifica se estação está disponível
-        if not no.disponivel:
-            return False
-
-        tipo_no = no.tipo
-        return v.repor_autonomia(tipo_no)
-
 
     # ==========================================================
     # Gestão de pedidos
@@ -160,15 +139,8 @@ class GestorFrota:
         
         self.pedidos_pendentes.append(p)
 
-    def pedidos_ativos(self) -> List[Pedido]:
-        return [
-            p for p in self.pedidos_pendentes
-            if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO)
-        ]
-
-
-
     # Critério: veículo disponível com capacidade suficiente e menor distância até à origem do pedido.
+    # Dá prioridade a veículos que respeitam preferência ambiental.
     def selecionar_veiculo_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
         candidatos = [
             v for v in self.veiculos_disponiveis(tempo_atual)
@@ -177,26 +149,27 @@ class GestorFrota:
 
         if not candidatos:
             return None
-        
+
         # Filtra por preferência ambiental (se não for "qualquer")
         if pedido.pref_ambiental in ("eletrico", "combustao"):
-            preferidos = [v for v in candidatos 
+            preferidos = [v for v in candidatos
                          if v.tipo_veiculo() == pedido.pref_ambiental]
+            # Se há veículos do tipo preferido, dá prioridade a eles
             if preferidos:
                 candidatos = preferidos
 
         # Calcula rota real para cada candidato
         melhor_veiculo = None
         menor_custo = float('inf')
-        
+
         for v in candidatos:
             caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial)
-            
+
             # Verifica se veículo tem autonomia para ir buscar o cliente
             distancia = self.calcular_distancia_rota(caminho)
             if distancia == float('inf') or not v.consegue_percorrer(distancia):
                 continue
-            
+
             if custo < menor_custo:
                 menor_custo = custo
                 melhor_veiculo = v
@@ -336,17 +309,3 @@ class GestorFrota:
         print(f"Veículo {veiculo.id_veiculo} vai recarregar em {melhor_estacao}")
         
         return True
-
-
-    # Estado do sistema
-    def gerar_estado_atual(self) -> Dict:
-        """Gera representação do estado atual do sistema"""
-        return {
-            "veiculos": {v.id_veiculo: v.posicao for v in self.veiculos.values()},
-            "autonomias": {v.id_veiculo: v.autonomia_km for v in self.veiculos.values()},
-            "estados": {v.id_veiculo: v.estado.value for v in self.veiculos.values()},
-            "pedidos_pendentes": [p.id_pedido for p in self.pedidos_pendentes 
-                                 if p.estado == EstadoPedido.PENDENTE],
-            "pedidos_ativos": [p.id_pedido for p in self.pedidos_pendentes 
-                              if p.estado in (EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)],
-        }
