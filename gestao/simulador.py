@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Callable, Optional
+from typing import List, Optional
 import random
 import heapq
 
@@ -8,7 +8,6 @@ from gestao.transito_dinamico import GestorTransito
 from gestao.gestor_falhas import GestorFalhas
 from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
-from interface_taxigreen import InterfaceTaxiGreen
 
 """
 Responsável por gerir o tempo e os eventos dinâmicos da simulação.
@@ -18,7 +17,6 @@ Responsável por gerir o tempo e os eventos dinâmicos da simulação.
       - recarga automática de veículos com autonomia baixa.
 """
 class Simulador:
-    #todo: nao gosto de duracao já ter um valor fixo
     def __init__(self, gestor: GestorFrota, duracao_total: int = 120, interface=None,
                  usar_transito: bool = True, usar_falhas: bool = True, prob_falha: float = 0.15):
         self.gestor = gestor
@@ -38,8 +36,7 @@ class Simulador:
             (pedido.instante_pedido, -pedido.prioridade, pedido.id_pedido, pedido)) #o sinal “–” inverte a prioridade, porque a heap ordena do menor para o maior
         self.pedidos_todos.append(pedido)
 
-    # Gera pedidos aleatórios ao longo da duração da simulação.- instante aleatório.
-    #todo: confirmar se é pertinente porque supostamente, para testes, os pedidos devem ser estatitos e nao random
+    # Gera pedidos aleatórios ao longo da duração da simulação (útil para testes de stress)
     def gerar_pedidos_aleatorios(self, n: int, zonas: List[str]):
         for i in range(n):
             origem = random.choice(zonas)
@@ -179,11 +176,15 @@ class Simulador:
             veiculo.pode_carregar_abastecer(tipo_no) and
             no.disponivel):
 
-            veiculo.repor_autonomia(tipo_no, self.tempo_atual, recarga_parcial=0.8)
+            sucesso, custo_recarga, tempo = veiculo.repor_autonomia(tipo_no, self.tempo_atual, recarga_parcial=0.8)
+
+            if sucesso:
+                # Adiciona custo de recarga às métricas
+                self.gestor.metricas.custo_total += custo_recarga
 
             if self.interface:
                 self.interface.registar_evento(
-                    f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"a recarregar em {veiculo.posicao}" )
+                    f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"a recarregar em {veiculo.posicao} (custo: €{custo_recarga:.2f})" )
 
         # Se chegou a uma estação mas ela está offline
         elif (veiculo.autonomia_km < 0.3 * veiculo.autonomiaMax_km and
@@ -230,7 +231,7 @@ class Simulador:
                 if not veiculo.rota or veiculo.indice_rota >= len(veiculo.rota) - 1:
                     pedido.estado = EstadoPedido.CONCLUIDO
                     veiculo.estado = EstadoVeiculo.DISPONIVEL
-                    veiculo.pedido_atual = None
+                    veiculo.id_pedido_atual = None
                     
                     tempo_resposta = self.tempo_atual - pedido.instante_pedido
                     self.gestor.metricas.registar_pedido(pedido, tempo_resposta)

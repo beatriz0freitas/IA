@@ -390,7 +390,7 @@ class InterfaceTaxiGreen:
             v.rota = []
             v.indice_rota = 0
             v.km_sem_passageiros = 0.0
-            v.pedido_atual = None
+            v.id_pedido_atual = None
             v.tempo_ocupado_ate = 0
         
         self.simulador.gestor.metricas = Metricas()
