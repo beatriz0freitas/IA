@@ -309,3 +309,31 @@ class GestorFrota:
         print(f"Veículo {veiculo.id_veiculo} vai recarregar em {melhor_estacao}")
         
         return True
+    
+    # Agrupa pedidos que estão geograficamente próximos
+    def agrupar_pedidos_proximos(pedidos_pendentes, raio_km=5.0):
+        clusters = []
+        visitados = set()
+
+        for p1 in pedidos_pendentes:
+            if p1.id_pedido in visitados:
+                continue
+
+            cluster = [p1]
+            visitados.add(p1.id_pedido)
+
+            for p2 in pedidos_pendentes:
+                if p2.id_pedido in visitados:
+                    continue
+
+                # Verifica proximidade de origem E destino
+                dist_origem = self.grafo.distancia(p1.posicao_inicial, p2.posicao_inicial)
+                dist_destino = self.grafo.distancia(p1.posicao_destino, p2.posicao_destino)
+
+                if dist_origem <= raio_km and dist_destino <= raio_km:
+                    cluster.append(p2)
+                    visitados.add(p2.id_pedido)
+
+            clusters.append(cluster)
+
+        return clusters
