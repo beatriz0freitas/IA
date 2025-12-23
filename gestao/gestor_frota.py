@@ -8,6 +8,7 @@ from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
 from gestao.algoritmos_procura.dfs import dfs
+from gestao.funcao_custo import FuncaoCustoComposta, PesosCusto
 
 '''
     Classe responsável pela gestão da frota da TaxiGreen. 
@@ -15,13 +16,16 @@ from gestao.algoritmos_procura.dfs import dfs
 '''
 class GestorFrota:
 
-    def __init__(self, grafo: Grafo):
+    def __init__(self, grafo: Grafo, usar_funcao_custo_composta: bool = False):
         self.grafo = grafo
         self.veiculos: Dict[str, Veiculo] = {}
         self.pedidos_pendentes: List[Pedido] = []
         self.pedidos_concluidos: List[Pedido] = []
         self.metricas = Metricas()
         self.algoritmo_procura = "astar"
+
+        self.usar_funcao_custo_composta = usar_funcao_custo_composta
+        self.funcao_custo = FuncaoCustoComposta()
 
 
     # ==========================================================
@@ -169,41 +173,70 @@ class GestorFrota:
         self.pedidos_pendentes.append(p)
 
 
-    # Critério: veículo disponível com capacidade suficiente e menor distância até à origem do pedido.
-    # Dá prioridade a veículos que respeitam preferência ambiental.
     def selecionar_veiculo_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
+        """
+        Seleciona veículo considerando custo composto (se ativado)
+        """
         candidatos = [
             v for v in self.veiculos_disponiveis(tempo_atual)
             if v.pode_transportar(pedido.passageiros)
         ]
-
+    
         if not candidatos:
             return None
-
-        # Filtra por preferência ambiental (se não for "qualquer")
+    
+        # Filtra por preferência ambiental
         if pedido.pref_ambiental in ("eletrico", "combustao"):
             preferidos = [v for v in candidatos
                          if v.tipo_veiculo() == pedido.pref_ambiental]
-            # Se há veículos do tipo preferido, dá prioridade a eles
             if preferidos:
                 candidatos = preferidos
-
-        # Calcula rota real para cada candidato
+    
         melhor_veiculo = None
-        menor_custo = float('inf')
-
-        for v in candidatos:
-            caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial, veiculo=v)
-
-            # Verifica se veículo tem autonomia para ir buscar o cliente
-            distancia = self.calcular_distancia_rota(caminho)
-            if distancia == float('inf') or not v.consegue_percorrer(distancia):
-                continue
-
-            if custo < menor_custo:
-                menor_custo = custo
-                melhor_veiculo = v
-
+        
+        if self.usar_custo_composto:
+            # Usa função de custo composta
+            menor_custo_composto = float('inf')
+            
+            for v in candidatos:
+                caminho, custo_tempo = self.calcular_rota(v.posicao, pedido.posicao_inicial, veiculo=v)
+                distancia = self.calcular_distancia_rota(caminho)
+                
+                if distancia == float('inf') or not v.consegue_percorrer(distancia):
+                    continue
+                
+                # Calcula tempo de resposta
+                tempo_resposta = tempo_atual - pedido.instante_pedido + custo_tempo
+                
+                # Calcula distância total (pickup + viagem)
+                rota_viagem, _ = self.calcular_rota(pedido.posicao_inicial, pedido.posicao_destino, veiculo=v)
+                dist_viagem = self.calcular_distancia_rota(rota_viagem)
+                dist_total = distancia + dist_viagem
+                
+                # Calcula custo composto
+                custo_composto = self.funcao_custo.calcular_custo_atribuicao(
+                    v, pedido, tempo_resposta, dist_total
+                )
+                
+                if custo_composto < menor_custo_composto:
+                    menor_custo_composto = custo_composto
+                    melhor_veiculo = v
+        
+        else:
+            # Usa apenas tempo/distância
+            menor_custo = float('inf')
+            
+            for v in candidatos:
+                caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial, veiculo=v)
+                distancia = self.calcular_distancia_rota(caminho)
+                
+                if distancia == float('inf') or not v.consegue_percorrer(distancia):
+                    continue
+                
+                if custo < menor_custo:
+                    menor_custo = custo
+                    melhor_veiculo = v
+    
         return melhor_veiculo
 
     def atribuir_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
