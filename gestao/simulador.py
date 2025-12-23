@@ -71,6 +71,12 @@ class Simulador:
             self.verificar_conclusao_pedidos()
             self.verificar_recargas()
 
+            if self.tempo_atual % 5 == 0:
+                self.gestor.reposicionar_veiculos(
+                    self.tempo_atual, 
+                    [p for _, _, _, p in self.fila_pedidos]  # Pedidos futuros
+                )
+            
             if self.interface:
                 self.interface.atualizar()
 
