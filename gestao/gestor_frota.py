@@ -36,20 +36,34 @@ class GestorFrota:
             raise ValueError("Algoritmo desconhecido. Use: astar, ucs, bfs ou dfs.")
     
 
-    # Calcula rota entre dois nós usando o algoritmo definido
-    # Retorna (caminho, custo) com validação, retorna ([], float('inf')) se não houver caminho
-    def calcular_rota(self, origem: str, destino: str):
+    def calcular_rota(self, origem: str, destino: str, veiculo=None):
+        """
+        Calcula rota considerando veículo (se fornecido) para heurística avançada
 
+        Args:
+            origem: Nó de origem
+            destino: Nó de destino
+            veiculo: (Opcional) Veículo para heurística avançada
+
+        Returns:
+            (caminho, custo)
+        """
         if origem == destino:
             return [origem], 0.0
-        
+
         if origem not in self.grafo.nos or destino not in self.grafo.nos:
             print(f"Erro: Nó inexistente - origem:{origem}, destino:{destino}")
             return [], float('inf')
-        
+
         try:
             if self.algoritmo_procura == "astar":
-                custo, caminho = a_star_search(self.grafo, origem, destino)
+                # Passa veículo para heurística avançada
+                custo, caminho = a_star_search(
+                    self.grafo, origem, destino, 
+                    veiculo=veiculo, 
+                    tempo_atual=getattr(self, 'tempo_atual', 0),
+                    usar_heuristica_avancada=True  # Pode ser configurável
+                )
             elif self.algoritmo_procura == "ucs":
                 custo, caminho = uniform_cost_search(self.grafo, origem, destino)
             elif self.algoritmo_procura == "bfs":
@@ -60,14 +74,13 @@ class GestorFrota:
                 custo = self.calcular_custo_rota(caminho) if caminho else float('inf')
             else:
                 raise ValueError("Algoritmo não definido")
-            
-            # Verifica se encontrou caminho
+
             if not caminho or custo == float('inf'):
-                print(f"⚠️ Nenhum caminho encontrado: {origem} → {destino}")
+                print(f"Nenhum caminho encontrado: {origem} → {destino}")
                 return [], float('inf')
-            
+
             return caminho, custo
-            
+
         except Exception as e:
             print(f"Erro ao calcular rota {origem}→{destino}: {e}")
             return [], float('inf')
@@ -125,6 +138,22 @@ class GestorFrota:
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
 
+    """
+    Move veículo para zona de alta procura esperada
+    """
+    def reposicionar_veiculo(veiculo, pedidos_futuros):
+
+        # Analisa pedidos futuros (próximos 10 minutos)
+        zonas_procura = {}
+        for p in pedidos_futuros:
+            if p.instante_pedido <= tempo_atual + 10:
+                zona = p.posicao_inicial
+                zonas_procura[zona] = zonas_procura.get(zona, 0) + 1
+
+        # Move para zona de maior procura
+        if zonas_procura:
+            zona_alvo = max(zonas_procura, key=zonas_procura.get)
+            veiculo.definir_rota(calcular_rota(veiculo.posicao, zona_alvo))
 
     # ==========================================================
     # Gestão de pedidos
@@ -164,7 +193,7 @@ class GestorFrota:
         menor_custo = float('inf')
 
         for v in candidatos:
-            caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial)
+            caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial, veiculo=v)
 
             # Verifica se veículo tem autonomia para ir buscar o cliente
             distancia = self.calcular_distancia_rota(caminho)
@@ -174,33 +203,6 @@ class GestorFrota:
             if custo < menor_custo:
                 menor_custo = custo
                 melhor_veiculo = v
-
-        return melhor_veiculo
-
-    """
-    Seleciona veículo minimizando dead mileage - atualmente usa rota calculada mas 
-    melhorar com consideracao destino anterior veiculo
-    """
-    def selecionar_veiculo_otimizado(pedido, veiculos_disponiveis):
-    
-        melhor_veiculo = None
-        menor_custo_total = float('inf')
-
-        for veiculo in veiculos_disponiveis:
-            # Distância até pickup
-            dist_pickup = self.calcular_distancia_rota(veiculo.posicao, pedido.origem)
-
-            # Distância da viagem com passageiro
-            dist_viagem = self.calcular_distancia_rota(pedido.origem, pedido.destino)
-
-            # Custo ponderado: penaliza dead mileage mais que viagem útil
-            custo_dead = dist_pickup * 2.0  # Penalização 2x
-            custo_util = dist_viagem * 1.0
-            custo_total = custo_dead + custo_util
-
-            if custo_total < menor_custo_total:
-                menor_custo_total = custo_total
-                melhor_veiculo = veiculo
 
         return melhor_veiculo
 
