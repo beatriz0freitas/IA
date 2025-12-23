@@ -139,6 +139,7 @@ class GestorFrota:
         
         self.pedidos_pendentes.append(p)
 
+
     # Critério: veículo disponível com capacidade suficiente e menor distância até à origem do pedido.
     # Dá prioridade a veículos que respeitam preferência ambiental.
     def selecionar_veiculo_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
@@ -173,6 +174,33 @@ class GestorFrota:
             if custo < menor_custo:
                 menor_custo = custo
                 melhor_veiculo = v
+
+        return melhor_veiculo
+
+    """
+    Seleciona veículo minimizando dead mileage - atualmente usa rota calculada mas 
+    melhorar com consideracao destino anterior veiculo
+    """
+    def selecionar_veiculo_otimizado(pedido, veiculos_disponiveis):
+    
+        melhor_veiculo = None
+        menor_custo_total = float('inf')
+
+        for veiculo in veiculos_disponiveis:
+            # Distância até pickup
+            dist_pickup = self.calcular_distancia_rota(veiculo.posicao, pedido.origem)
+
+            # Distância da viagem com passageiro
+            dist_viagem = self.calcular_distancia_rota(pedido.origem, pedido.destino)
+
+            # Custo ponderado: penaliza dead mileage mais que viagem útil
+            custo_dead = dist_pickup * 2.0  # Penalização 2x
+            custo_util = dist_viagem * 1.0
+            custo_total = custo_dead + custo_util
+
+            if custo_total < menor_custo_total:
+                menor_custo_total = custo_total
+                melhor_veiculo = veiculo
 
         return melhor_veiculo
 
