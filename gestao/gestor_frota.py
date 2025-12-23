@@ -142,22 +142,6 @@ class GestorFrota:
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
 
-    """
-    Move veículo para zona de alta procura esperada
-    """
-    def reposicionar_veiculo(veiculo, pedidos_futuros):
-
-        # Analisa pedidos futuros (próximos 10 minutos)
-        zonas_procura = {}
-        for p in pedidos_futuros:
-            if p.instante_pedido <= tempo_atual + 10:
-                zona = p.posicao_inicial
-                zonas_procura[zona] = zonas_procura.get(zona, 0) + 1
-
-        # Move para zona de maior procura
-        if zonas_procura:
-            zona_alvo = max(zonas_procura, key=zonas_procura.get)
-            veiculo.definir_rota(calcular_rota(veiculo.posicao, zona_alvo))
 
     # ==========================================================
     # Gestão de pedidos
@@ -373,30 +357,3 @@ class GestorFrota:
         
         return True
     
-    # Agrupa pedidos que estão geograficamente próximos
-    def agrupar_pedidos_proximos(pedidos_pendentes, raio_km=5.0):
-        clusters = []
-        visitados = set()
-
-        for p1 in pedidos_pendentes:
-            if p1.id_pedido in visitados:
-                continue
-
-            cluster = [p1]
-            visitados.add(p1.id_pedido)
-
-            for p2 in pedidos_pendentes:
-                if p2.id_pedido in visitados:
-                    continue
-
-                # Verifica proximidade de origem E destino
-                dist_origem = self.grafo.distancia(p1.posicao_inicial, p2.posicao_inicial)
-                dist_destino = self.grafo.distancia(p1.posicao_destino, p2.posicao_destino)
-
-                if dist_origem <= raio_km and dist_destino <= raio_km:
-                    cluster.append(p2)
-                    visitados.add(p2.id_pedido)
-
-            clusters.append(cluster)
-
-        return clusters
