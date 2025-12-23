@@ -9,6 +9,7 @@ from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
 from gestao.algoritmos_procura.dfs import dfs
 from gestao.funcao_custo import FuncaoCustoComposta, PesosCusto
+from gestao.otimizador_rotas import agrupar_pedidos_proximos, selecionar_veiculo_minimizar_dead_mileage, reposicionar_veiculo_proativo
 
 '''
     Classe responsável pela gestão da frota da TaxiGreen. 
@@ -16,16 +17,16 @@ from gestao.funcao_custo import FuncaoCustoComposta, PesosCusto
 '''
 class GestorFrota:
 
-    def __init__(self, grafo: Grafo, usar_funcao_custo_composta: bool = False):
+    def __init__(self, grafo: Grafo, usar_funcao_custo_composta: bool = False, otimizar_dead_mileage: bool = False):
         self.grafo = grafo
         self.veiculos: Dict[str, Veiculo] = {}
         self.pedidos_pendentes: List[Pedido] = []
         self.pedidos_concluidos: List[Pedido] = []
         self.metricas = Metricas()
         self.algoritmo_procura = "astar"
-
         self.usar_funcao_custo_composta = usar_funcao_custo_composta
         self.funcao_custo = FuncaoCustoComposta()
+        self.otimizar_dead_mileage = otimizar_dead_mileage
 
 
     # ==========================================================
@@ -143,6 +144,26 @@ class GestorFrota:
         return self.veiculos.get(id_veiculo)
 
 
+    def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
+        """
+        Reposiciona veículos para zonas de alta procura esperada.
+        Chamado periodicamente pelo simulador.
+        """
+        if not self.otimizar_dead_mileage:
+            return  # Feature desativada
+
+        for veiculo in self.veiculos.values():
+            if veiculo.estado == EstadoVeiculo.DISPONIVEL and not veiculo.rota:
+                zona_alvo = reposicionar_veiculo_proativo(veiculo, pedidos_futuros, tempo_atual, self.grafo )
+
+                if zona_alvo != veiculo.posicao:
+                    # Calcula rota para zona de alta procura
+                    caminho, _ = self.calcular_rota(veiculo.posicao, zona_alvo, veiculo=veiculo)
+                    if caminho:
+                        veiculo.definir_rota(caminho)
+                        veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+                        print(f"Veículo {veiculo.id_veiculo} reposicionado para {zona_alvo}")
+
     # ==========================================================
     # Gestão de pedidos
     # ==========================================================
@@ -178,6 +199,11 @@ class GestorFrota:
     
         melhor_veiculo = None
         
+        # Escolhe estratégia de seleção
+        if self.otimizar_dead_mileage:
+            melhor_veiculo, _ = selecionar_veiculo_minimizar_dead_mileage(pedido, candidatos, self, penalizacao_dead_mileage=2.0)
+            return melhor_veiculo
+    
         if self.usar_custo_composto:
             # Usa função de custo composta
             menor_custo_composto = float('inf')
