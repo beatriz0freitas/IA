@@ -7,9 +7,10 @@ import heapq
 from . import uteis
 from typing import Dict, List, Tuple, Optional
 from modelo.grafo import Grafo
-from gestao.algoritmos_procura.uteis import dist_euclidiana
+from gestao.algoritmos_procura.uteis import dist_euclidiana, heuristica_avancada
 
 # Calcula o menor custo (tempo em minutos) e o caminho entre dois nós. Retorna (tempo_total_min, [lista_de_nós]).
+#todo: Adicionar parâmetro opcional para escolher heurística (simples vs avançada)
 def a_star_search(grafo: Grafo, start_id: str, goal_id: str) -> Tuple[float, List[str]]:
     if start_id == goal_id:
         return 0.0, [start_id]
