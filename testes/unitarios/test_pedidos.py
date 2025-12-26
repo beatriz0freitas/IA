@@ -21,7 +21,8 @@ class TestPedidos(unittest.TestCase):
             prioridade=2,
             pref_ambiental="eletrico",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
         
         self.assertEqual(pedido.id_pedido, "P1")

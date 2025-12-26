@@ -44,7 +44,8 @@ class TestFuncaoCusto(unittest.TestCase):
             prioridade=2,
             pref_ambiental="eletrico",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
     
     def test_custo_atribuicao(self):

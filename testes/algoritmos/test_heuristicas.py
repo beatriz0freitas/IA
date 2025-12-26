@@ -52,7 +52,7 @@ class TestHeuristicas(unittest.TestCase):
         no_a = self.grafo.nos["Centro"]
         no_b = self.grafo.nos["Shopping"]
         
-        tempo = tempo_heuristica(no_a, no_b, velocidade_media_kmh=40.0)
+        tempo = tempo_heuristica(no_a, no_b, velocidadeMedia_kmh=40.0)
         
         self.assertGreater(tempo, 0.0)
         self.assertIsInstance(tempo, float)

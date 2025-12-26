@@ -14,6 +14,7 @@ from modelo.grafo import Grafo, TipoNo
 from gestao.metricas import Metricas
 from gestao.cache_distancias import CacheDistancias, CacheRotas
 from gestao.estrategia_selecao import (EstrategiaSelecao, SelecaoMenorDistancia, SelecaoCustoComposto)
+from gestao.reposicionamento import reposicionar_veiculo_proativo
 
 from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
@@ -187,7 +188,23 @@ class GestorFrota:
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
     
-    
+
+    def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
+
+        if not self.otimizar_dead_mileage:
+            return
+        
+        for veiculo in self.veiculos.values():
+            if veiculo.estado == EstadoVeiculo.DISPONIVEL and not veiculo.rota:
+                zona_alvo = reposicionar_veiculo_proativo(veiculo, pedidos_futuros, tempo_atual, self.grafo)
+
+                if zona_alvo != veiculo.posicao:
+                    caminho, _ = self.calcular_rota(veiculo.posicao, zona_alvo, veiculo=veiculo)
+                    if caminho:
+                        veiculo.definir_rota(caminho)
+                        veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+
+
     # ==========================================================
     # Gestão de pedidos
     # ==========================================================
@@ -364,3 +381,4 @@ class GestorFrota:
             "cache_distancias": self.cache_distancias.estatisticas(),
             "cache_rotas": self.cache_rotas.estatisticas()
         }
+    

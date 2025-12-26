@@ -13,9 +13,8 @@ def reposicionar_veiculo_proativo(veiculo: Veiculo, pedidos_futuros: List[Pedido
     Sugere zona para reposicionar veículo ocioso.
     
     Analisa pedidos esperados nos próximos N minutos
-    e retorna zona de maior demanda.
+    e retorna zona de maior procura.
 
-        
     Returns:
         ID da zona alvo
     """

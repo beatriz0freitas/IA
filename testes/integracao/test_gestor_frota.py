@@ -54,7 +54,8 @@ class TestGestorFrota(unittest.TestCase):
             prioridade=1,
             pref_ambiental="qualquer",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
         
         veiculo = self.gestor.selecionar_veiculo_pedido(pedido, tempo_atual=0)
@@ -84,7 +85,8 @@ class TestGestorFrota(unittest.TestCase):
             prioridade=2,
             pref_ambiental="qualquer",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
         
         self.gestor.adicionar_pedido(pedido)

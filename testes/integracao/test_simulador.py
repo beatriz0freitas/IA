@@ -37,7 +37,8 @@ class TestSimulador(unittest.TestCase):
             prioridade=1,
             pref_ambiental="qualquer",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
         
         self.simulador.agendar_pedido(pedido)
@@ -56,7 +57,8 @@ class TestSimulador(unittest.TestCase):
             prioridade=1,
             pref_ambiental="qualquer",
             estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None
+            veiculo_atribuido=None,
+            tempo_max_espera=30
         )
         
         self.simulador.agendar_pedido(pedido)
