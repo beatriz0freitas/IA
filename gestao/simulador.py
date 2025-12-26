@@ -144,12 +144,13 @@ class Simulador:
 
 
     def mover_veiculos(self):
-        
-        for v in self.gestor.veiculos.values():
-            if not v.rota:
-                continue  # sem rota atribuída
-
-            # Move um passo
+        """Move apenas veículos que têm rota ativa."""
+        veiculos_em_movimento = [
+            v for v in self.gestor.veiculos.values() 
+            if v.rota and v.indice_rota < len(v.rota) - 1
+        ]
+    
+        for v in veiculos_em_movimento:
             moveu, chegou = v.mover_um_passo(self.gestor.grafo, self.tempo_atual)
             
             if not moveu:
