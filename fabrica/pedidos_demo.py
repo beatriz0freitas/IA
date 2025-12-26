@@ -81,50 +81,6 @@ class PedidosDemo:
             tempo_max_espera=20
         )
 
-        p3 = Pedido(
-            id_pedido="P3",
-            posicao_inicial="Universidade",
-            posicao_destino="Parque_Tec",
-            passageiros=1,
-            instante_pedido=5,
-            prioridade=1,
-            pref_ambiental="eletrico",
-            estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None,
-            instante_atendimento=None,
-            tempo_max_espera=25
-        )
-
-        # Pedido 4: Cliente no Porto quer ir ao Estadio
-        p4 = Pedido(
-            id_pedido="P4",
-            posicao_inicial="Porto",
-            posicao_destino="Estadio",
-            passageiros=2,
-            instante_pedido=5,
-            prioridade=2,
-            pref_ambiental="eletrico",
-            estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None,
-            instante_atendimento=None,
-            tempo_max_espera=30
-        )
-
-        # Pedido 5: Cliente no Parque_Tec quer ir ao Centro
-        p5 = Pedido(
-            id_pedido="P5",
-            posicao_inicial="Parque_Tec",
-            posicao_destino="Centro",
-            passageiros=1,
-            instante_pedido=7,
-            prioridade=1,
-            pref_ambiental="qualquer",
-            estado=EstadoPedido.PENDENTE,
-            veiculo_atribuido=None,
-            instante_atendimento=None,
-            tempo_max_espera=20
-        )
-
         simulador.agendar_pedido(p1)
         simulador.agendar_pedido(p2)
         simulador.agendar_pedido(p3)
