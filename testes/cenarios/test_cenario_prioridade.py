@@ -53,9 +53,14 @@ class TestCenarioPrioridadeUrgente(unittest.TestCase):
         
         self.simulador.agendar_pedido(pedido_urgente)
         
-        # Processa no instante 5
+        # Instante 4 - chegam normais
+        self.simulador.tempo_atual = 4
+        self.simulador.processar_pedidos_novos()
+
+        # Instante 5 - chega urgente
         self.simulador.tempo_atual = 5
         self.simulador.processar_pedidos_novos()
+
         self.simulador.atribuir_pedidos_pendentes()
         
         # Pedido urgente deve ser atendido

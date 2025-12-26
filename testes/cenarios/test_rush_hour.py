@@ -26,6 +26,8 @@ class TestCenarioRushHour(unittest.TestCase):
     
     def test_transito_aumenta_tempos(self):
         """Verifica que trânsito aumenta tempos de viagem."""
+        self.gestor.cache_rotas.limpar_cache()
+
         # Rota sem trânsito
         self.simulador.tempo_atual = 0  # Madrugada
         self.simulador.gestor_transito.atualizar_transito(0)
@@ -33,6 +35,8 @@ class TestCenarioRushHour(unittest.TestCase):
         caminho, custo_noturno = self.gestor.calcular_rota(
             "Centro", "Aeroporto"
         )
+        
+        self.gestor.cache_rotas.limpar_cache()
         
         # Rota com rush hour
         self.simulador.tempo_atual = 480  # 8h

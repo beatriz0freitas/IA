@@ -13,8 +13,7 @@ import math
 from modelo.pedidos import Pedido
 from modelo.veiculos import Veiculo
 from modelo.grafo import Grafo
-from uteis import dist_euclidiana
-
+from gestao.algoritmos_procura.uteis import dist_euclidiana
 
 @dataclass
 class GrupoPedidos:
