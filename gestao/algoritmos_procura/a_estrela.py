@@ -4,10 +4,9 @@ entre dois nós do grafo.
 """
 
 import heapq
-from . import uteis
+from .uteis import dist_euclidiana, heuristica_avancada
 from typing import Dict, List, Tuple, Optional
 from modelo.grafo import Grafo
-from gestao.algoritmos_procura.uteis import dist_euclidiana, heuristica_avancada
 
 def a_star_search(grafo: Grafo, start_id: str, goal_id: str, 
                   veiculo=None, tempo_atual=0, usar_heuristica_avancada=True) -> Tuple[float, List[str]]:

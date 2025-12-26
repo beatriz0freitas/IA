@@ -35,17 +35,17 @@ def heuristica_avancada(grafo: Grafo, veiculo, no_atual_id: str, no_destino_id: 
     no_destino = grafo.nos[no_destino_id]
     
     # Distância euclidiana base (sempre admissível)
-    dist_euclidiana = dist_euclidiana(no_atual, no_destino)
+    distancia_euclidiana = dist_euclidiana(no_atual, no_destino)
     
     # Tempo estimado com velocidade MÁXIMA (otimista = admissível)
     velocidade_maxima = 50.0  # km/h (autoestrada)
-    tempo_base = (dist_euclidiana / velocidade_maxima) * 60  # minutos
+    tempo_base = (distancia_euclidiana / velocidade_maxima) * 60  # minutos
     
     # Penalização por autonomia insuficiente
     penalizacao_autonomia = 0.0
-    if veiculo and veiculo.autonomia_km < dist_euclidiana:
+    if veiculo and veiculo.autonomia_km < distancia_euclidiana:
         # Vai precisar de recarga/abastecimento
-        autonomia_faltante = dist_euclidiana - veiculo.autonomia_km
+        autonomia_faltante = distancia_euclidiana - veiculo.autonomia_km
         
         if veiculo.tipo_veiculo() == "eletrico":
             # Tempo MÍNIMO de recarga (otimista) - Assumimos recarga parcial mínima (20%)
