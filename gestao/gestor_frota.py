@@ -13,7 +13,7 @@ from modelo.pedidos import Pedido, EstadoPedido
 from modelo.grafo import Grafo, TipoNo
 from gestao.metricas import Metricas
 from gestao.cache_distancias import CacheDistancias, CacheRotas
-from gestao.estrategias_selecao import (EstrategiaSelecao, SelecaoMenorDistancia, SelecaoCustoComposto)
+from gestao.estrategia_selecao import (EstrategiaSelecao, SelecaoMenorDistancia, SelecaoCustoComposto)
 
 from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
