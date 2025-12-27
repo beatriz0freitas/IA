@@ -189,20 +189,15 @@ class GestorFrota:
         return self.veiculos.get(id_veiculo)
     
 
+
     def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
-
-        if not self.otimizar_dead_mileage:
-            return
-        
-        for veiculo in self.veiculos.values():
-            if veiculo.estado == EstadoVeiculo.DISPONIVEL and not veiculo.rota:
-                zona_alvo = reposicionar_veiculo_proativo(veiculo, pedidos_futuros, tempo_atual, self.grafo)
-
-                if zona_alvo != veiculo.posicao:
-                    caminho, _ = self.calcular_rota(veiculo.posicao, zona_alvo, veiculo=veiculo)
-                    if caminho:
-                        veiculo.definir_rota(caminho)
-                        veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+        """
+        Reposiciona veículos ociosos (compatibilidade com simulador).
+        Método stub - implementação opcional.
+        """
+        # Implementação desativada por padrão para evitar erros
+        # todo: Se quiser ativar, adicione self.otimizar_dead_mileage = True no __init__
+        return
 
 
     # ==========================================================

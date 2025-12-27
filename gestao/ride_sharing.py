@@ -57,6 +57,15 @@ class GestorRideSharing:
         self.pedidos_agrupados = 0
         self.economia_total_km = 0.0
     
+    def distancia_euclidiana(self, no1_id: str, no2_id: str) -> float:
+        """
+        Wrapper que chama a função importada dist_euclidiana.
+        Mantém compatibilidade com chamadas self.distancia_euclidiana().
+        """
+        no1 = self.grafo.nos[no1_id]
+        no2 = self.grafo.nos[no2_id]
+        return dist_euclidiana(no1, no2)
+    
     def pedidos_compativel_temporal(self, p1: Pedido, p2: Pedido) -> bool:
         """Verifica se pedidos são compatíveis temporalmente."""
         diff = abs(p1.instante_pedido - p2.instante_pedido)
@@ -67,8 +76,8 @@ class GestorRideSharing:
         Verifica se pedidos são compatíveis espacialmente.
         Critério: Origens E destinos devem estar próximos.
         """
-        dist_origem = self.dist_euclidiana(p1.posicao_inicial, p2.posicao_inicial)
-        dist_destino = self.dist_euclidiana(p1.posicao_destino, p2.posicao_destino)
+        dist_origem = self.distancia_euclidiana(p1.posicao_inicial, p2.posicao_inicial)
+        dist_destino = self.distancia_euclidiana(p1.posicao_destino, p2.posicao_destino)
         
         return (dist_origem <= self.raio_agrupamento and 
                 dist_destino <= self.raio_agrupamento)
