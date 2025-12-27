@@ -71,6 +71,12 @@ class Simulador:
             self.verificar_conclusao_pedidos()
             self.verificar_recargas()
 
+            if self.tempo_atual % 5 == 0:
+                self.gestor.reposicionar_veiculos(
+                    self.tempo_atual, 
+                    [p for _, _, _, p in self.fila_pedidos]  # Pedidos futuros
+                )
+            
             if self.interface:
                 self.interface.atualizar()
 
@@ -138,12 +144,13 @@ class Simulador:
 
 
     def mover_veiculos(self):
-        
-        for v in self.gestor.veiculos.values():
-            if not v.rota:
-                continue  # sem rota atribuída
-
-            # Move um passo
+        """Move apenas veículos que têm rota ativa."""
+        veiculos_em_movimento = [
+            v for v in self.gestor.veiculos.values() 
+            if v.rota and v.indice_rota < len(v.rota) - 1
+        ]
+    
+        for v in veiculos_em_movimento:
             moveu, chegou = v.mover_um_passo(self.gestor.grafo, self.tempo_atual)
             
             if not moveu:

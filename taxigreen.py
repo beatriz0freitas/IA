@@ -11,9 +11,9 @@ def main():
     print("\nInicializar simulação TaxiGreen...\n")
 
     grafo = GrafoDemo.criar_grafo_demo()
+    usar_custo_composto = True
     gestor = GestorFrota(grafo)
 
-    # Criação da frota e pedidos
     VeiculosDemo.criar_frota_demo(gestor)
 
     simulador = Simulador(gestor, duracao_total=60, usar_transito=True, usar_falhas=True, prob_falha=0.08)  # 60 min, 8% probabilidade de falha
@@ -21,7 +21,7 @@ def main():
     simulador.interface = interface
 
     PedidosDemo.criar_pedidos_demo(simulador)
-
+    print(f"\n Modo de custo: {'COMPOSTO (multi-objetivo)' if usar_custo_composto else 'SIMPLES (tempo)'}")
     print(f"\n Pedidos agendados: {len(simulador.fila_pedidos)}")
     print(f" Duração da simulação: {simulador.duracao_total} minutos")
     print(f" Trânsito dinâmico: {'Ativo' if simulador.gestor_transito else 'Desativado'}")
