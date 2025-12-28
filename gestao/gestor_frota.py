@@ -1,9 +1,21 @@
+"""
+    Classe responsável pela gestão da frota da TaxiGreen. 
+
+Responsabilidades:
+- Gestão de veículos e pedidos
+- Cálculo de rotas (delega aos algoritmos)
+- Atribuição de veículos (delega às estratégias)
+"""
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
 from modelo.grafo import Grafo, TipoNo
 from gestao.metricas import Metricas
+from gestao.cache_distancias import CacheDistancias, CacheRotas
+from gestao.estrategia_selecao import (EstrategiaSelecao, SelecaoMenorDistancia, SelecaoCustoComposto)
+from gestao.reposicionamento import reposicionar_veiculo_proativo
+
 from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
@@ -11,19 +23,32 @@ from gestao.algoritmos_procura.dfs import dfs
 from gestao.algoritmos_procura.greedy import greedy
 
 
-'''
-    Classe responsável pela gestão da frota da TaxiGreen. 
-    Mantém o estado dos veículos e pedidos, controla atribuições
-'''
 class GestorFrota:
 
-    def __init__(self, grafo: Grafo):
+    def __init__(self, grafo: Grafo, estrategia_selecao: EstrategiaSelecao = None):
         self.grafo = grafo
         self.veiculos: Dict[str, Veiculo] = {}
         self.pedidos_pendentes: List[Pedido] = []
         self.pedidos_concluidos: List[Pedido] = []
         self.metricas = Metricas()
         self.algoritmo_procura = "astar"
+        
+        self.cache_distancias = CacheDistancias(grafo)
+        self.cache_rotas = CacheRotas(validade_minutos=10)
+        
+        # Estratégia de seleção (padrão: menor distância)
+        self.estrategia_selecao = estrategia_selecao or SelecaoMenorDistancia()
+        
+        # Pré-carrega distâncias entre estações
+        self.pre_carregar_cache()
+
+    def pre_carregar_cache(self):
+        """Pré-carrega cache com distâncias entre estações/postos."""
+        estacoes = [
+            no_id for no_id, no in self.grafo.nos.items()
+            if no.tipo in (TipoNo.ESTACAO_RECARGA, TipoNo.POSTO_ABASTECIMENTO)
+        ]
+        self.cache_distancias.pre_carregar_distancias_criticas(estacoes)
 
 
     # ==========================================================
@@ -37,75 +62,112 @@ class GestorFrota:
         else:
             raise ValueError("Algoritmo desconhecido. Use: astar, greedy, ucs, bfs ou dfs.")
     
+    def definir_estrategia_selecao(self, estrategia: EstrategiaSelecao):
+        """Troca estratégia de seleção de veículos."""
+        self.estrategia_selecao = estrategia
 
-    # Calcula rota entre dois nós usando o algoritmo definido
-    # Retorna (caminho, custo) com validação, retorna ([], float('inf')) se não houver caminho
-    def calcular_rota(self, origem: str, destino: str):
+    # ==========================================================
+    # CÁLCULO DE ROTAS (OTIMIZADO)
+    # ==========================================================
 
+    def calcular_rota(self, origem: str, destino: str, 
+                     veiculo: Veiculo = None, tempo_atual: int = 0) -> Tuple[List[str], float]:
+        """
+        Calcula rota entre dois nós (com cache).
+            -tempo_atual: Tempo atual (para trânsito)
+            
+        Returns:
+            (caminho, custo_tempo)
+        """
         if origem == destino:
             return [origem], 0.0
         
         if origem not in self.grafo.nos or destino not in self.grafo.nos:
-            print(f"Erro: Nó inexistente - origem:{origem}, destino:{destino}")
             return [], float('inf')
         
+        # Tenta buscar no cache
+        resultado_cache = self.cache_rotas.get_rota(
+            origem, destino, self.algoritmo_procura, tempo_atual
+        )
+        if resultado_cache:
+            return resultado_cache
+        
+        # Cache miss - calcula rota
         try:
             if self.algoritmo_procura == "astar":
-                custo, caminho = a_star_search(self.grafo, origem, destino)
+                custo, caminho = a_star_search(self.grafo, origem, destino, veiculo=veiculo, tempo_atual=tempo_atual, usar_heuristica_avancada=True)
             elif self.algoritmo_procura == "ucs":
                 custo, caminho = uniform_cost_search(self.grafo, origem, destino)
             elif self.algoritmo_procura == "bfs":
                 caminho = bfs(self.grafo, origem, destino)
-                custo = self.calcular_custo_rota(caminho) if caminho else float('inf')
+                custo = self.calcular_custo_caminho(caminho) if caminho else float('inf')
             elif self.algoritmo_procura == "dfs":
                 caminho = dfs(self.grafo, origem, destino)
                 custo = self.calcular_custo_rota(caminho) if caminho else float('inf')
             elif self.algoritmo_procura == "greedy":
                 custo, caminho = greedy(self.grafo, origem, destino)
             else:
-                raise ValueError("Algoritmo não definido")
-            
-            # Verifica se encontrou caminho
-            if not caminho or custo == float('inf'):
-                print(f"⚠️ Nenhum caminho encontrado: {origem} → {destino}")
                 return [], float('inf')
             
-            return caminho, custo
+            if caminho and custo != float('inf'):
+                # Armazena no cache
+                self.cache_rotas.armazenar_rota(
+                    origem, destino, self.algoritmo_procura, 
+                    caminho, custo, tempo_atual
+                )
+                return caminho, custo
             
+            return [], float('inf')
+        
         except Exception as e:
             print(f"Erro ao calcular rota {origem}→{destino}: {e}")
             return [], float('inf')
 
 
-
-    def calcular_custo_rota(self, caminho: List[str]) -> float:
+    def calcular_metricas_rota(self, caminho: List[str]) -> Tuple[float, float]:
+        """
+        Calcula custo (tempo) E distância de uma rota simultaneamente.
+        
+        Returns:
+            (custo_tempo, distancia_km)
+        """
         if not caminho or len(caminho) < 2:
-            return 0.0
-
+            return 0.0, 0.0
+        
         custo_total = 0.0
+        distancia_total = 0.0
+        
         for i in range(len(caminho) - 1):
             try:
                 aresta = self.grafo.get_aresta(caminho[i], caminho[i + 1])
-                custo_total += aresta.tempo_real()  # Considera trânsito
+                custo_total += aresta.tempo_real()
+                distancia_total += aresta.distancia_km
             except ValueError:
-                return float('inf')  # Caminho inválido
-
-        return custo_total
-
-
-    def calcular_distancia_rota(self, caminho: List[str]) -> float:
-        if not caminho or len(caminho) < 2:
-            return 0.0
+                return float('inf'), float('inf')
         
-        distancia = 0.0
-        for i in range(len(caminho) - 1):
-            try:
-                aresta = self.grafo.get_aresta(caminho[i], caminho[i + 1])
-                distancia += aresta.distancia_km
-            except ValueError:
-                return float('inf')
+        return custo_total, distancia_total
+    
+    def calcular_custo_caminho(self, caminho: List[str]) -> float:
+        """Calcula apenas custo (para BFS/DFS)."""
+        custo, _ = self.calcular_metricas_rota(caminho)
+        return custo
+    
+    def verificar_viabilidade_rota(self, veiculo: Veiculo, origem: str, destino: str) -> Tuple[bool, List[str], float, float]:
+        """
+        Verifica se veículo pode completar rota.
         
-        return distancia
+        Returns:
+            (viavel, caminho, custo_tempo, distancia)
+        """
+        caminho, custo = self.calcular_rota(origem, destino, veiculo=veiculo)
+        
+        if not caminho or custo == float('inf'):
+            return False, [], float('inf'), float('inf')
+        
+        _, distancia = self.calcular_metricas_rota(caminho)
+        viavel = veiculo.consegue_percorrer(distancia)
+        
+        return viavel, caminho, custo, distancia
     
 
     # ==========================================================
@@ -128,6 +190,17 @@ class GestorFrota:
 
     def get_veiculo(self, id_veiculo: str) -> Optional[Veiculo]:
         return self.veiculos.get(id_veiculo)
+    
+
+
+    def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
+        """
+        Reposiciona veículos ociosos (compatibilidade com simulador).
+        Método stub - implementação opcional.
+        """
+        # Implementação desativada por padrão para evitar erros
+        # todo: Se quiser ativar, adicione self.otimizar_dead_mileage = True no __init__
+        return
 
 
     # ==========================================================
@@ -143,95 +216,81 @@ class GestorFrota:
         
         self.pedidos_pendentes.append(p)
 
-    # Critério: veículo disponível com capacidade suficiente e menor distância até à origem do pedido.
-    # Dá prioridade a veículos que respeitam preferência ambiental.
+    def filtrar_veiculos_por_preferencia(self, candidatos: List[Veiculo], pref_ambiental: str) -> List[Veiculo]:
+        """
+        Filtra veículos por preferência ambiental.
+        """
+        if pref_ambiental in ("eletrico", "combustao"):
+            preferidos = [v for v in candidatos 
+                         if v.tipo_veiculo() == pref_ambiental]
+            return preferidos if preferidos else candidatos
+        return candidatos
+    
     def selecionar_veiculo_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
+        """
+        Seleciona veículo para pedido usando estratégia configurada.
+        """
+        # Filtra candidatos básicos
         candidatos = [
             v for v in self.veiculos_disponiveis(tempo_atual)
             if v.pode_transportar(pedido.passageiros)
         ]
-
+        
         if not candidatos:
             return None
+        
+        # Aplica filtro de preferência ambiental
+        candidatos = self.filtrar_veiculos_por_preferencia(candidatos, pedido.pref_ambiental)
+        
+        return self.estrategia_selecao.selecionar(pedido, candidatos, self, tempo_atual)
 
-        # Filtra por preferência ambiental (se não for "qualquer")
-        if pedido.pref_ambiental in ("eletrico", "combustao"):
-            preferidos = [v for v in candidatos
-                         if v.tipo_veiculo() == pedido.pref_ambiental]
-            # Se há veículos do tipo preferido, dá prioridade a eles
-            if preferidos:
-                candidatos = preferidos
-
-        # Calcula rota real para cada candidato
-        melhor_veiculo = None
-        menor_custo = float('inf')
-
-        for v in candidatos:
-            caminho, custo = self.calcular_rota(v.posicao, pedido.posicao_inicial)
-
-            # Verifica se veículo tem autonomia para ir buscar o cliente
-            distancia = self.calcular_distancia_rota(caminho)
-            if distancia == float('inf') or not v.consegue_percorrer(distancia):
-                continue
-
-            if custo < menor_custo:
-                menor_custo = custo
-                melhor_veiculo = v
-
-        return melhor_veiculo
 
     def atribuir_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
-        v_escolhido = self.selecionar_veiculo_pedido(pedido, tempo_atual)
-        if not v_escolhido:
+        """Atribui veículo a pedido."""
+        veiculo = self.selecionar_veiculo_pedido(pedido, tempo_atual)
+        
+        if not veiculo:
             pedido.estado = EstadoPedido.REJEITADO
             self.metricas.pedidos_rejeitados += 1
             return None
-       
-        rota_ate_origem, custo_origem = self.calcular_rota(v_escolhido.posicao, pedido.posicao_inicial )
-        rota_para_destino, custo_destino = self.calcular_rota(pedido.posicao_inicial, pedido.posicao_destino)
         
-        if not rota_ate_origem or not rota_para_destino:
-            print(f"Pedido {pedido.id_pedido} rejeitado: sem rota viável")
-            pedido.estado = EstadoPedido.REJEITADO
-            self.metricas.pedidos_rejeitados += 1
-            return None
-
-        # Verifica autonomia total necessária
-        dist_total = (self.calcular_distancia_rota(rota_ate_origem) + self.calcular_distancia_rota(rota_para_destino))
+        # Calcula rota completa (pickup + viagem)
+        viavel_pickup, rota_pickup, _, _ = self.verificar_viabilidade_rota(veiculo, veiculo.posicao, pedido.posicao_inicial)
+        viavel_viagem, rota_viagem, _, _ = self.verificar_viabilidade_rota(veiculo, pedido.posicao_inicial, pedido.posicao_destino)
         
-        if not v_escolhido.consegue_percorrer(dist_total):
-            # Tenta incluir recarga no meio
-            return self.atribuir_com_recarga(pedido, v_escolhido, tempo_atual)
+        if not viavel_pickup or not viavel_viagem:
+            return self.atribuir_com_recarga(pedido, veiculo, tempo_atual)
         
-        rota_completa = rota_ate_origem + rota_para_destino[1:]
+        # Monta rota completa
+        rota_completa = rota_pickup + rota_viagem[1:]
         
-        # Remove nós consecutivos duplicados (segurança extra)
+        # Remove duplicados consecutivos (segurança)
         rota_filtrada = [rota_completa[0]]
         for no in rota_completa[1:]:
             if no != rota_filtrada[-1]:
                 rota_filtrada.append(no)
         
-        # Atribui veículo
-        pedido.veiculo_atribuido = v_escolhido.id_veiculo
+        # Atribui
+        pedido.veiculo_atribuido = veiculo.id_veiculo
         pedido.estado = EstadoPedido.ATRIBUIDO
         pedido.instante_atendimento = tempo_atual
         
-        v_escolhido.definir_rota(rota_filtrada)
-        v_escolhido.estado = EstadoVeiculo.EM_DESLOCACAO
-        v_escolhido.id_pedido_atual = pedido.id_pedido
+        veiculo.definir_rota(rota_filtrada)
+        veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+        veiculo.id_pedido_atual = pedido.id_pedido
         
-        return v_escolhido
+        return veiculo
 
 
     # Tenta atribuir pedido incluindo paragem para recarga
     def atribuir_com_recarga(self, pedido: Pedido, veiculo: Veiculo, tempo_atual: int) -> Optional[Veiculo]:
 
         # Encontra estação de recarga mais próxima (que esteja disponível)
-        estacoes = [no_id for no_id, no in self.grafo.nos.items()
-                    if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
+        estacoes = [
+            no_id for no_id, no in self.grafo.nos.items()
+            if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
         
         if not estacoes:
-            print(f"ERRO: Sem estações de {veiculo.tipo_veiculo()} disponíveis")
             pedido.estado = EstadoPedido.REJEITADO
             self.metricas.pedidos_rejeitados += 1
             return None
@@ -242,25 +301,25 @@ class GestorFrota:
         
         for estacao in estacoes:
             # Rota: posição atual → estação → origem pedido → destino pedido
-            rota1, c1 = self.calcular_rota(veiculo.posicao, estacao)
-            rota2, c2 = self.calcular_rota(estacao, pedido.posicao_inicial)
-            rota3, c3 = self.calcular_rota(pedido.posicao_inicial, pedido.posicao_destino)
+            viavel1, r1, c1, _ = self.verificar_viabilidade_rota(veiculo, veiculo.posicao, estacao)
+            viavel2, r2, c2, _ = self.verificar_viabilidade_rota(veiculo, estacao, pedido.posicao_inicial)
+            viavel3, r3, c3, _ = self.verificar_viabilidade_rota(veiculo, pedido.posicao_inicial, pedido.posicao_destino )
             
-            if not all([rota1, rota2, rota3]):
+            if not all([viavel1, viavel2, viavel3]):
                 continue
             
             custo_total = c1 + c2 + c3
             if custo_total < menor_custo:
                 menor_custo = custo_total
                 melhor_estacao = estacao
-                melhor_rota = rota1 + rota2[1:] + rota3[1:]
+                melhor_rota = r1 + r2[1:] + r3[1:]
         
         if not melhor_rota:
             pedido.estado = EstadoPedido.REJEITADO
             self.metricas.pedidos_rejeitados += 1
             return None
         
-        # Atribui com rota incluindo recarga
+        # Atribui com recarga
         pedido.veiculo_atribuido = veiculo.id_veiculo
         pedido.estado = EstadoPedido.ATRIBUIDO
         pedido.instante_atendimento = tempo_atual
@@ -269,11 +328,11 @@ class GestorFrota:
         veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
         veiculo.id_pedido_atual = pedido.id_pedido
         
-        print(f"Veículo {veiculo.id_veiculo} vai recarregar em {melhor_estacao}")
         return veiculo
 
 
     def verificar_necessidade_recarga(self, veiculo: Veiculo, tempo_atual: int, threshold: float = 0.3) -> bool:
+        """Verifica se veículo precisa recarregar e envia para estação."""
 
         if veiculo.estado != EstadoVeiculo.DISPONIVEL:
             return False
@@ -282,8 +341,9 @@ class GestorFrota:
             return False
 
         # Encontra estação mais próxima (que esteja disponível)
-        estacoes = [no_id for no_id, no in self.grafo.nos.items()
-                   if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
+        estacoes = [
+            no_id for no_id, no in self.grafo.nos.items()
+            if veiculo.pode_carregar_abastecer(no.tipo) and no.disponivel]
         
         if not estacoes:
             return False
@@ -294,22 +354,29 @@ class GestorFrota:
         menor_dist = float('inf')
         
         for estacao in estacoes:
-            rota, custo = self.calcular_rota(veiculo.posicao, estacao)
-            dist = self.calcular_distancia_rota(rota)
+            viavel, rota, _, dist = self.verificar_viabilidade_rota(veiculo, veiculo.posicao, estacao)
             
-            if dist < menor_dist and veiculo.consegue_percorrer(dist):
+            if viavel and dist < menor_dist:
                 menor_dist = dist
                 melhor_estacao = estacao
                 melhor_rota = rota
         
         if not melhor_rota:
-            print(f"Veículo {veiculo.id_veiculo} sem autonomia para chegar a estação!")
             veiculo.estado = EstadoVeiculo.INDISPONIVEL
             return False
         
-        # Define rota para estação
         veiculo.definir_rota(melhor_rota)
         veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
-        print(f"Veículo {veiculo.id_veiculo} vai recarregar em {melhor_estacao}")
-        
         return True
+
+    # ==========================================================
+    # ESTATÍSTICAS
+    # ==========================================================
+    
+    def obter_estatisticas_cache(self) -> dict:
+        """Retorna estatísticas dos caches."""
+        return {
+            "cache_distancias": self.cache_distancias.estatisticas(),
+            "cache_rotas": self.cache_rotas.estatisticas()
+        }
+    
