@@ -16,7 +16,7 @@ def main():
     # Criação da frota e pedidos
     VeiculosDemo.criar_frota_demo(gestor)
 
-    simulador = Simulador(gestor, duracao_total=60, usar_transito=True, usar_falhas=True, prob_falha=0.08)  # 60 min, 8% probabilidade de falha
+    simulador = Simulador(gestor, duracao_total=60, usar_transito=True, usar_falhas=True, prob_falha=0.0)  # 60 min, 8% probabilidade de falha
     interface = InterfaceTaxiGreen(simulador)
     simulador.interface = interface
 

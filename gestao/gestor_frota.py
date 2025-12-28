@@ -8,6 +8,8 @@ from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
 from gestao.algoritmos_procura.dfs import dfs
+from gestao.algoritmos_procura.greedy import greedy
+
 
 '''
     Classe responsável pela gestão da frota da TaxiGreen. 
@@ -30,10 +32,10 @@ class GestorFrota:
 
     def definir_algoritmo_procura(self, nome: str):
         """Escolhe qual algoritmo de procura usar: astar, ucs, bfs ou dfs"""
-        if nome.lower() in ("astar", "ucs", "bfs", "dfs"):
+        if nome.lower() in ("astar", "greedy", "ucs", "bfs", "dfs"):
             self.algoritmo_procura = nome.lower()
         else:
-            raise ValueError("Algoritmo desconhecido. Use: astar, ucs, bfs ou dfs.")
+            raise ValueError("Algoritmo desconhecido. Use: astar, greedy, ucs, bfs ou dfs.")
     
 
     # Calcula rota entre dois nós usando o algoritmo definido
@@ -58,6 +60,8 @@ class GestorFrota:
             elif self.algoritmo_procura == "dfs":
                 caminho = dfs(self.grafo, origem, destino)
                 custo = self.calcular_custo_rota(caminho) if caminho else float('inf')
+            elif self.algoritmo_procura == "greedy":
+                custo, caminho = greedy(self.grafo, origem, destino)
             else:
                 raise ValueError("Algoritmo não definido")
             

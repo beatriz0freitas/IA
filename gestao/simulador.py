@@ -91,16 +91,16 @@ class Simulador:
     # ==========================================================
     
     def processar_pedidos_novos(self):
-        while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
-            #pedido é removido da heap para nao ser processado again
+        while self.fila_pedidos and self.fila_pedidos[0][0] <= self.tempo_atual:
             _, _, _, pedido = heapq.heappop(self.fila_pedidos)
-
             self.gestor.adicionar_pedido(pedido)
-
-            if hasattr(self, "interface") and self.interface:
+            if self.interface:
                 self.interface.registar_evento(
-                    f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "f"({pedido.posicao_inicial} → {pedido.posicao_destino})")
+                    f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "
+                    f"({pedido.posicao_inicial} → {pedido.posicao_destino})"
+                )
                 self.interface.mostrar_pedido(pedido)
+
 
 
     def atribuir_pedidos_pendentes(self):
@@ -135,6 +135,10 @@ class Simulador:
             else:
                 if self.interface:
                     self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {p.id_pedido} rejeitado - "f"nenhum veículo disponível")
+                
+                if p.estado == EstadoPedido.PENDENTE:
+                    p.estado = EstadoPedido.CANCELADO
+                    self.gestor.metricas.pedidos_rejeitados += 1
 
 
     def mover_veiculos(self):

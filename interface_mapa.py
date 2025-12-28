@@ -28,6 +28,13 @@ class InterfaceMapa(tk.Canvas):
         self.bind("<Motion>", self.on_mouse_move)
         self.bind("<Leave>", self.on_mouse_leave)
 
+        self.vehicle_items = {}      # id_veiculo -> (shadow_id, rect_id, label_id)
+        self.vehicle_pixel = {}      # id_veiculo -> (x, y) posição atual em pixels
+        self.anim_job = {}           # id_veiculo -> after_id (para cancelar animações)
+        self.dest_lines = {}   # id_veiculo -> line_id (linha até destino)
+
+
+
     def calcular_escala_e_offset(self):
         if not self.grafo.nos:
             self.offset_x = self.width // 2
@@ -225,53 +232,166 @@ class InterfaceMapa(tk.Canvas):
         for p in pedidos_list:
             self.desenhar_pedido(p)
 
-    def atualizar_veiculos(self, veiculos: dict):
-        self.delete("veiculos")
-        self.delete("rotas")
+    def atualizar_veiculos(self, veiculos: dict, anim_ms: int = 450, frames: int = 18):
+        # NÃO apagues "veiculos" nem "destinos" aqui — senão perdes animação.
+        # Se quiseres apagar rotas antigas, apaga só as rotas (se ainda as desenhas):
+        # self.delete("rotas")
 
+        # Remove veículos que já não existem
+        ids_atuais = set(v.id_veiculo for v in veiculos.values())
+        ids_existentes = set(self.vehicle_items.keys())
+
+        for vid in ids_existentes - ids_atuais:
+            # remove linha destino
+            line_id = self.dest_lines.pop(vid, None)
+            if line_id:
+                self.delete(line_id)
+
+            # remove itens veículo
+            shadow_id, rect_id, label_id = self.vehicle_items.pop(vid)
+            self.delete(shadow_id)
+            self.delete(rect_id)
+            self.delete(label_id)
+
+            self.vehicle_pixel.pop(vid, None)
+
+            job = self.anim_job.pop(vid, None)
+            if job:
+                try:
+                    self.after_cancel(job)
+                except tk.TclError:
+                    pass
+
+        # Atualiza / cria veículos existentes
         for v in veiculos.values():
-            x, y = self._pos(v.posicao)
-            
-            # Cores por tipo
+            vid = v.id_veiculo
+            target_x, target_y = self._pos(v.posicao)
+
+            # Cor por tipo/estado
             if v.tipo_veiculo() == "eletrico":
-                cor = "#0ea5e9"  # Azul cyan
+                cor = "#0ea5e9"
             else:
-                cor = "#f59e0b"  # Laranja
-            
-            # Cor por estado
+                cor = "#f59e0b"
+
             if v.estado.value in ("recarregando", "reabastecendo"):
-                cor = "#fbbf24"  # Amarelo
+                cor = "#fbbf24"
             elif v.estado.value == "a_servico":
-                cor = "#10b981"  # Verde
-            
-            # Desenha rota (atrás)
-            if hasattr(v, "rota") and v.rota and len(v.rota) > 1:
-                coords = [self._pos(node) for node in v.rota]
-                
-                # Linha tracejada colorida
-                for i in range(len(coords) - 1):
-                    self.create_line(coords[i][0], coords[i][1], 
-                                   coords[i+1][0], coords[i+1][1], 
-                                   fill=cor, dash=(8, 4), width=3, 
-                                   tags="rotas")
-            
-            # Sombra
-            self.create_rectangle(x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2, 
-                                x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2,
-                                fill="#d1d5db", outline="",
-                                tags="veiculos")
-            
-            # Veículo
-            self.create_rectangle(x - VEHICLE_SIZE, y - VEHICLE_SIZE, 
-                                x + VEHICLE_SIZE, y + VEHICLE_SIZE,
-                                fill=cor, outline="#ffffff", width=2,
-                                tags=("veiculos", f"veiculo_{v.id_veiculo}"))
-            
-            # Label
-            self.create_text(x, y + VEHICLE_SIZE + 12, text=v.id_veiculo, 
-                           font=("Inter", 8, "bold"), 
-                           fill="#374151",
-                           tags="veiculos")
+                cor = "#10b981"
+
+            # Se ainda não existe, cria no target (sem animação inicial)
+            if vid not in self.vehicle_items:
+                x, y = target_x, target_y
+
+                # linha destino (se houver), criada já
+                destino = v.rota[-1] if getattr(v, "rota", None) else None
+                if destino and destino in self.grafo.nos and destino != v.posicao:
+                    dx, dy = self._pos(destino)
+                    line_id = self.create_line(
+                        x, y, dx, dy,
+                        fill="#fca5a5", width=1, dash=(3, 4),
+                        tags=("destinos",)
+                    )
+                    self.dest_lines[vid] = line_id
+                    self.tag_lower(line_id)
+
+                shadow = self.create_rectangle(
+                    x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
+                    x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2,
+                    fill="#d1d5db", outline=""
+                )
+                rect = self.create_rectangle(
+                    x - VEHICLE_SIZE, y - VEHICLE_SIZE,
+                    x + VEHICLE_SIZE, y + VEHICLE_SIZE,
+                    fill=cor, outline="#ffffff", width=2
+                )
+                label = self.create_text(
+                    x, y + VEHICLE_SIZE + 12, text=vid,
+                    font=("Inter", 8, "bold"), fill="#374151"
+                )
+
+                self.vehicle_items[vid] = (shadow, rect, label)
+                self.vehicle_pixel[vid] = (x, y)
+                continue
+
+            # Atualiza cor
+            shadow_id, rect_id, label_id = self.vehicle_items[vid]
+            self.itemconfig(rect_id, fill=cor)
+
+            # Atualiza / remove a linha destino (sem apagar tudo)
+            destino = v.rota[-1] if getattr(v, "rota", None) else None
+            cur_x, cur_y = self.vehicle_pixel.get(vid, (target_x, target_y))
+
+            if destino and destino in self.grafo.nos and destino != v.posicao:
+                dx, dy = self._pos(destino)
+                if vid not in self.dest_lines:
+                    line_id = self.create_line(
+                        cur_x, cur_y, dx, dy,
+                        fill="#fca5a5", width=1, dash=(3, 4),
+                        tags=("destinos",)
+                    )
+                    self.dest_lines[vid] = line_id
+                else:
+                    self.coords(self.dest_lines[vid], cur_x, cur_y, dx, dy)
+
+                self.tag_lower(self.dest_lines[vid])
+            else:
+                line_id = self.dest_lines.pop(vid, None)
+                if line_id:
+                    self.delete(line_id)
+
+            # Animar do pixel atual -> pixel alvo
+            start_x, start_y = self.vehicle_pixel.get(vid, (target_x, target_y))
+
+            # Se praticamente igual, só “snap”
+            if abs(start_x - target_x) < 1 and abs(start_y - target_y) < 1:
+                self._colocar_veiculo_em(vid, target_x, target_y)
+                continue
+
+            # Cancela animação anterior se existir
+            job = self.anim_job.get(vid)
+            if job:
+                try:
+                    self.after_cancel(job)
+                except tk.TclError:
+                    pass
+
+            self._animar_veiculo(vid, start_x, start_y, target_x, target_y, anim_ms, frames)
+
+
+    def _colocar_veiculo_em(self, vid: str, x: float, y: float):
+        shadow_id, rect_id, label_id = self.vehicle_items[vid]
+
+        self.coords(shadow_id,
+                    x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
+                    x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2)
+
+        self.coords(rect_id,
+                    x - VEHICLE_SIZE, y - VEHICLE_SIZE,
+                    x + VEHICLE_SIZE, y + VEHICLE_SIZE)
+
+        self.coords(label_id,
+                    x, y + VEHICLE_SIZE + 12)
+
+        self.vehicle_pixel[vid] = (x, y)
+
+    def _animar_veiculo(self, vid: str, sx: float, sy: float, tx: float, ty: float,
+                        anim_ms: int, frames: int):
+        # Interpolação linear (chega bem para “visual cues”)
+        step_ms = max(10, anim_ms // max(1, frames))
+        dx = (tx - sx) / frames
+        dy = (ty - sy) / frames
+
+        def frame(i: int, x: float, y: float):
+            if vid not in self.vehicle_items:
+                return
+            self._colocar_veiculo_em(vid, x, y)
+            if i >= frames:
+                self.anim_job.pop(vid, None)
+                return
+            self.anim_job[vid] = self.after(step_ms, lambda: frame(i + 1, x + dx, y + dy))
+
+        frame(0, sx, sy)
+
 
     # Mostra tooltip ao passar o mouse"""
     def on_mouse_move(self, event):

@@ -8,6 +8,7 @@ from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
 from gestao.algoritmos_procura.dfs import dfs
+from gestao.algoritmos_procura.greedy import greedy
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     # Define algoritmos a testar
     algoritmos = {
         "A*": a_star_search,
+        "Greedy": greedy,
         "UCS": uniform_cost_search,
         "BFS": bfs,
         "DFS": dfs
@@ -29,10 +31,10 @@ def main():
 
     # Casos de teste
     casos_teste = [
-        ("Centro", "Shopping", "Caso 1: Curta distância (centro)"),
-        ("Centro", "Aeroporto", "Caso 2: Média distância (centro-aeroporto)"),
-        ("Porto", "Escola_Norte", "Caso 3: Longa distância (sul-norte)"),
-        ("Suburbio_Oeste1", "Parque_Tec", "Caso 4: Travessia completa (oeste-este)"),
+        ("Estação_Metro", "Bairro_Sul", "Caso 1: Curta distância"),
+        ("Centro", "Aeroporto", "Caso 2: Média distância"),
+        ("Porto", "Universidade", "Caso 3: Longa distância"),
+        ("Suburbio_Oeste2", "Aeroporto", "Caso 4: Travessia completa"),
     ]
 
     for origem, destino, descricao in casos_teste:

@@ -28,49 +28,54 @@ class ComparadorAlgoritmos:
     resultados: List[ResultadoAlgoritmo] = field(default_factory=list)
 
     def testar_algoritmo(self, nome: str, funcao_busca: Callable,
-                        origem: str, destino: str) -> ResultadoAlgoritmo:
+                    origem: str, destino: str) -> ResultadoAlgoritmo:
         """
         Executa um algoritmo e regista métricas.
-
-        Args:
-            nome: Nome do algoritmo (ex: "A*", "UCS")
-            funcao_busca: Função que implementa o algoritmo
-            origem: Nó de origem
-            destino: Nó de destino
-
-        Returns:
-            ResultadoAlgoritmo com métricas da execução
         """
+
+        # Instrumentação genérica: conta nós expandidos como “nós para os quais vizinhos(nó)
+        # foi chamado”. Funciona para A*, UCS, BFS, DFS, etc., desde que usem grafo.vizinhos().
+        orig_vizinhos = getattr(self.grafo, "vizinhos", None)
+        expandidos_unicos: set[str] = set()
+
+        def vizinhos_contador(no_id: str):
+            expandidos_unicos.add(no_id)
+            return orig_vizinhos(no_id)
 
         inicio = time.perf_counter()
 
         try:
+            if orig_vizinhos is not None:
+                self.grafo.vizinhos = vizinhos_contador  # type: ignore[attr-defined]
+
             # Executa algoritmo
             resultado = funcao_busca(self.grafo, origem, destino)
 
             # Interpreta resultado (alguns retornam (custo, caminho), outros só caminho)
             if isinstance(resultado, tuple):
-                custo, caminho = resultado
+                custo = resultado[0]
+                caminho = resultado[1]
             else:
                 caminho = resultado
                 custo = self._calcular_custo_caminho(caminho) if caminho else float('inf')
 
             fim = time.perf_counter()
             tempo_ms = (fim - inicio) * 1000
-
             sucesso = bool(caminho) and custo != float('inf')
+
+            nos_expandidos = len(expandidos_unicos) if orig_vizinhos is not None else 0
 
             return ResultadoAlgoritmo(
                 nome_algoritmo=nome,
                 tempo_execucao_ms=round(tempo_ms, 3),
-                nos_expandidos=len(caminho) if caminho else 0,  # Aproximação
+                nos_expandidos=nos_expandidos,
                 custo_solucao=custo,
                 tamanho_caminho=len(caminho) if caminho else 0,
                 caminho=caminho if caminho else [],
                 sucesso=sucesso
             )
 
-        except Exception as e:
+        except Exception:
             fim = time.perf_counter()
             tempo_ms = (fim - inicio) * 1000
 
@@ -83,6 +88,12 @@ class ComparadorAlgoritmos:
                 caminho=[],
                 sucesso=False
             )
+
+        finally:
+            # Restaura método original (para não afetar execuções seguintes)
+            if orig_vizinhos is not None:
+                self.grafo.vizinhos = orig_vizinhos  # type: ignore[attr-defined]
+
 
 
     def _calcular_custo_caminho(self, caminho: List[str]) -> float:
@@ -121,7 +132,7 @@ class ComparadorAlgoritmos:
             self.resultados.append(resultado)
 
         # Ordena por tempo de execução
-        self.resultados.sort(key=lambda r: r.tempo_execucao_ms)
+        self.resultados.sort(key=lambda r: (not r.sucesso, r.custo_solucao, r.tempo_execucao_ms))
 
         return self.resultados
 
