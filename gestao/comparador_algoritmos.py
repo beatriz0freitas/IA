@@ -59,32 +59,37 @@ class CenarioTeste:
 
 
 class ComparadorAlgoritmos:
-    """Compara diferentes algoritmos de procura no mesmo cenário"""
-    grafo: Grafo
-    resultados: List[ResultadoAlgoritmo] = field(default_factory=list)
-
-    def testar_algoritmo(self, nome: str, funcao_busca: Callable,
-                    origem: str, destino: str) -> ResultadoAlgoritmo:
+    """
+    Compara algoritmos de procura em cenários realistas.
+    
+    MÉTRICAS AVALIADAS:
+    - Tempo de execução
+    - Número de nós expandidos
+    - Qualidade da solução (custo/distância)
+    - Uso de memória
+    """
+    
+    def __init__(self, grafo: Grafo):
+        self.grafo = grafo
+        self.resultados: List[ResultadoAlgoritmo] = []
+        self.historico: Dict[str, List[ResultadoAlgoritmo]] = {}
+    
+    def testar_algoritmo(self, nome: str, funcao_busca: Callable, cenario: CenarioTeste) -> ResultadoAlgoritmo:
         """
-        Executa um algoritmo e regista métricas.
+        Executa um algoritmo e registra métricas detalhadas.
+        
+        Args:
+            nome: Nome do algoritmo
+            funcao_busca: Função que implementa o algoritmo
+            cenario: Cenário de teste
+            
+        Returns:
+            ResultadoAlgoritmo com todas as métricas
         """
-
-        # Instrumentação genérica: conta nós expandidos como “nós para os quais vizinhos(nó)
-        # foi chamado”. Funciona para A*, UCS, BFS, DFS, etc., desde que usem grafo.vizinhos().
-        orig_vizinhos = getattr(self.grafo, "vizinhos", None)
-        expandidos_unicos: set[str] = set()
-
-        def vizinhos_contador(no_id: str):
-            expandidos_unicos.add(no_id)
-            return orig_vizinhos(no_id)
-
         inicio = time.perf_counter()
         nos_expandidos = 0
         
         try:
-            if orig_vizinhos is not None:
-                self.grafo.vizinhos = vizinhos_contador  # type: ignore[attr-defined]
-
             # Executa algoritmo
             if cenario.veiculo and "astar" in nome.lower():
                 # A* com contexto (veículo + tempo)
@@ -100,8 +105,7 @@ class ComparadorAlgoritmos:
             
             # Interpreta resultado
             if isinstance(resultado, tuple):
-                custo = resultado[0]
-                caminho = resultado[1]
+                custo, caminho = resultado
             else:
                 caminho = resultado
                 custo = self.calcular_custo_caminho(caminho) if caminho else float('inf')
@@ -110,7 +114,7 @@ class ComparadorAlgoritmos:
             tempo_ms = (fim - inicio) * 1000
             
             # Estima nós expandidos (aproximação pelo tamanho do caminho)
-            nos_expandidos = len(expandidos_unicos) if orig_vizinhos is not None else 0
+            nos_expandidos = len(caminho) if caminho else 0
             
             # Estima uso de memória (estruturas de dados típicas)
             memoria_kb = self.estimar_memoria(caminho, nos_expandidos)

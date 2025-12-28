@@ -8,6 +8,7 @@ from gestao.algoritmos_procura.a_estrela import a_star_search
 from gestao.algoritmos_procura.ucs import uniform_cost_search
 from gestao.algoritmos_procura.bfs import bfs
 from gestao.algoritmos_procura.dfs import dfs
+from gestao.algoritmos_procura.greedy import greedy
 from testes.test_config import ConfigTestes
 
 
@@ -19,6 +20,7 @@ class TestComparacaoAlgoritmos(unittest.TestCase):
         
         self.algoritmos = {
             "A*": a_star_search,
+            "Greedy": greedy,
             "UCS": uniform_cost_search,
             "BFS": bfs,
             "DFS": dfs

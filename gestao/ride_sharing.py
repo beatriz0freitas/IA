@@ -185,7 +185,7 @@ class GestorRideSharing:
         
         for candidata in set(zonas):  # Remove duplicadas
             dist_total = sum(
-                self.dist_euclidiana(candidata, z) 
+                self.distancia_euclidiana(candidata, z) 
                 for z in zonas if z != candidata
             )
             
@@ -203,9 +203,9 @@ class GestorRideSharing:
         desvio_total = 0.0
         
         for pedido in pedidos:
-            desvio_origem = self.dist_euclidiana(pedido.posicao_inicial, origem_comum)
-            desvio_destino = self.dist_euclidiana(pedido.posicao_destino, destino_comum)
-            
+            desvio_origem = self.distancia_euclidiana(pedido.posicao_inicial, origem_comum)
+            desvio_destino = self.distancia_euclidiana(pedido.posicao_destino, destino_comum)
+
             desvio_total += desvio_origem + desvio_destino
         
         return desvio_total
@@ -217,12 +217,12 @@ class GestorRideSharing:
         """
         # Distância se fossem viagens individuais
         # (assumindo veículos começam na mesma posição)
-        km_individuais = len(pedidos) * self.dist_euclidiana(
+        km_individuais = len(pedidos) * self.distancia_euclidiana(
             origem_comum, destino_comum
         )
         
         # Distância agrupada (uma única viagem)
-        km_agrupados = self.dist_euclidiana(origem_comum, destino_comum)
+        km_agrupados = self.distancia_euclidiana(origem_comum, destino_comum)
         
         return km_individuais - km_agrupados
     
