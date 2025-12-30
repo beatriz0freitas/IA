@@ -38,7 +38,7 @@ class TestComparacaoAlgoritmos(unittest.TestCase):
         resultados = self.comparador.comparar_multiplos(self.algoritmos, cenario)
         
         # Todos devem encontrar solução
-        self.assertEqual(len(resultados), 4)
+        self.assertEqual(len(resultados), 5)
         for r in resultados:
             self.assertTrue(r.sucesso, f"{r.nome_algoritmo} falhou")
     
