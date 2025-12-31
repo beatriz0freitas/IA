@@ -1,14 +1,6 @@
 # Makefile para Projeto TaxiGreen
 # Inteligência Artificial - Universidade do Minho
 
-SRC_DIR := .
-TEST_DIR := testes
-DOCS_DIR := docs
-
-# Arquivos
-REQUIREMENTS := requirements.txt
-
-
 .PHONY: all
 all: help
 

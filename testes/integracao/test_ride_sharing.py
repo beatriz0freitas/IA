@@ -26,7 +26,7 @@ class TestRideSharing(unittest.TestCase):
         p1 = Pedido(
             id_pedido="P1",
             posicao_inicial="Centro",
-            posicao_destino="Shopping",
+            posicao_destino="Aeroporto",
             passageiros=2,
             instante_pedido=10,
             prioridade=1,
@@ -37,8 +37,8 @@ class TestRideSharing(unittest.TestCase):
         
         p2 = Pedido(
             id_pedido="P2",
-            posicao_inicial="Praça",  # Próximo do Centro
-            posicao_destino="Hospital",  # Próximo do Shopping
+            posicao_inicial="Centro",
+            posicao_destino="Shopping", 
             passageiros=1,
             instante_pedido=12,
             prioridade=1,

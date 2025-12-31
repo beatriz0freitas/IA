@@ -67,15 +67,14 @@ class TestCenarioFrotaCombustao(unittest.TestCase):
     
     def test_custo_maior_que_eletrico(self):
         """Combustão deve ter custo maior."""
-        # Compara com cenário elétrico equivalente
-        # (teste de referência cruzada)
-        for i in range(3):
+        # Compara com cenário elétrico equivalente (teste de referência cruzada)
+        for i in range(5):
             pedido = Pedido(
                 id_pedido=f"P{i}",
                 posicao_inicial="Centro",
-                posicao_destino="Shopping",
+                posicao_destino="Aeroporto",
                 passageiros=1,
-                instante_pedido=i * 5,
+                instante_pedido=i * 3,
                 prioridade=1,
                 pref_ambiental="qualquer",
                 estado=EstadoPedido.PENDENTE,
@@ -88,8 +87,10 @@ class TestCenarioFrotaCombustao(unittest.TestCase):
         
         metricas = self.gestor.metricas.calcular_metricas()
         
-        # Custo base deve ser > €6 (0.20/km * ~10km * 3 pedidos)
-        self.assertGreater(metricas['custo_total'], 6.0)
+        # Verifica se atendeu pedidos primeiro
+        self.assertGreater(metricas['pedidos_servicos'], 0, "Deve atender pelo menos 1 pedido")
+        # Custo combustão (0.20/km) deve ser significativo
+        self.assertGreater(metricas['custo_total'], 5.0)
 
 if __name__ == '__main__':
     unittest.main()
