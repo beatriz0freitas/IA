@@ -46,10 +46,15 @@ class TestGestorFalhas(unittest.TestCase):
     
     def test_simular_falha_aleatoria(self):
         """Testa simulação de falhas aleatórias."""
-        falhas = self.gestor_falhas.simular_falha_aleatoria(tempo_atual=20)
+        # Com prob=0.3, força múltiplas simulações para garantir falhas
+        total_falhas = 0
         
-        # Com prob=0.3, deve haver algumas falhas
-        self.assertIsInstance(falhas, list)
+        for _ in range(10):  # 10 iterações
+            falhas = self.gestor_falhas.simular_falha_aleatoria(tempo_atual=20)
+            total_falhas += len(falhas)
+        
+        # Com 10 iterações e prob=0.3, deve ter ALGUMA falha
+        self.assertGreater(total_falhas, 0, "Deveria ter ocorrido pelo menos uma falha em 10 simulações")
     
     def test_obter_estado_estacoes(self):
         """Testa estado global das estações."""
