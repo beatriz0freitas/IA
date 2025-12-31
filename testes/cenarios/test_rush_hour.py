@@ -26,7 +26,7 @@ class TestCenarioRushHour(unittest.TestCase):
         
         # Salva tempo base
         aresta_ref = grafo.get_aresta("Centro", "Shopping")
-        tempo_base = aresta_ref.tempo_minutos
+        tempo_base = aresta_ref.tempoViagem_min
         
         # Madrugada (2h)
         self.simulador.gestor_transito.atualizar_transito(tempo_simulacao=120)
@@ -39,9 +39,9 @@ class TestCenarioRushHour(unittest.TestCase):
         tempo_rush = aresta_rush.tempo_real()
         
         # Verificações corretas
-        self.assertLess(tempo_noturno, tempo_base * 1.1)
-        self.assertGreater(tempo_rush, tempo_base * 1.5)
-        self.assertGreater(tempo_rush, tempo_noturno)
+        self.assertLess(tempo_noturno, tempo_base * 1.1, f"Noite ({tempo_noturno:.2f}) deveria reduzir vs Base ({tempo_base:.2f})")
+        self.assertGreater(tempo_rush, tempo_base * 1.5, f"Rush ({tempo_rush:.2f}) deveria aumentar vs Base ({tempo_base:.2f})")
+        self.assertGreater(tempo_rush, tempo_noturno, f"Rush ({tempo_rush:.2f}) deveria ser > Noite ({tempo_noturno:.2f})")
     
     def test_pedidos_atendidos_com_transito(self):
         """Testa que pedidos são atendidos mesmo com trânsito."""
