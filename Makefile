@@ -45,6 +45,11 @@ compare-strategies:
 	@echo "Comparando estratégias de seleção..."
 	python3 testes/integracao/test_estrategias_selecao.py
 
+.PHONY: diagnostico
+diagnostico:
+	@echo "Diagnóstico do sistema de trânsito..."
+	python3 diagnostico_transito.py
+	
 # ==================== BENCHMARKS ====================
 # todo : verificar se vale a pena
 

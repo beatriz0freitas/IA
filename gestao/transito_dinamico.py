@@ -88,7 +88,7 @@ class GestorTransito:
             for aresta in arestas:
                 no_destino = aresta.no_destino
 
-                # Factor base por hora
+                # Reinicia factor (não acumula)
                 factor = factor_base
 
                 # Aumenta congestionamento em zonas centrais durante rush hour
@@ -101,7 +101,7 @@ class GestorTransito:
                     if 17 <= self.hora_atual <= 19:
                         factor *= 1.15
 
-                # Atualiza aresta
+                # SUBSTITUI congestionamento (não multiplica o anterior)
                 aresta.congestion = round(factor, 2)
 
 
