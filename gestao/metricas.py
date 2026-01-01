@@ -64,3 +64,23 @@ class Metricas:
             )
         }
 
+    def calcular_metricas_dead_mileage(veiculos: Dict[str, Veiculo]) -> Dict:
+        """
+        Calcula métricas detalhadas sobre km sem passageiros.
+        """
+        km_total = sum(v.km_total for v in veiculos.values())
+        km_sem_pass = sum(v.km_sem_passageiros for v in veiculos.values())
+
+        perc = (km_sem_pass / km_total * 100) if km_total > 0 else 0.0
+
+        dead_por_veiculo = {
+            v.id_veiculo: v.km_sem_passageiros 
+            for v in veiculos.values()
+        }
+
+        return {
+            "km_total": km_total,
+            "km_sem_passageiros": km_sem_pass,
+            "perc_dead_mileage": round(perc, 2),
+            "dead_mileage_por_veiculo": dead_por_veiculo
+        }

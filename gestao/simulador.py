@@ -71,6 +71,12 @@ class Simulador:
             self.verificar_conclusao_pedidos()
             self.verificar_recargas()
 
+            if self.tempo_atual % 5 == 0:
+                self.gestor.reposicionar_veiculos(
+                    self.tempo_atual, 
+                    [p for _, _, _, p in self.fila_pedidos]  # Pedidos futuros
+                )
+            
             if self.interface:
                 self.interface.atualizar()
 
@@ -91,16 +97,16 @@ class Simulador:
     # ==========================================================
     
     def processar_pedidos_novos(self):
-        while self.fila_pedidos and self.fila_pedidos[0][0] == self.tempo_atual:
-            #pedido é removido da heap para nao ser processado again
+        while self.fila_pedidos and self.fila_pedidos[0][0] <= self.tempo_atual:
             _, _, _, pedido = heapq.heappop(self.fila_pedidos)
-
             self.gestor.adicionar_pedido(pedido)
-
-            if hasattr(self, "interface") and self.interface:
+            if self.interface:
                 self.interface.registar_evento(
-                    f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "f"({pedido.posicao_inicial} → {pedido.posicao_destino})")
+                    f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "
+                    f"({pedido.posicao_inicial} → {pedido.posicao_destino})"
+                )
                 self.interface.mostrar_pedido(pedido)
+
 
 
     def atribuir_pedidos_pendentes(self):
@@ -135,15 +141,20 @@ class Simulador:
             else:
                 if self.interface:
                     self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {p.id_pedido} rejeitado - "f"nenhum veículo disponível")
+                
+                if p.estado == EstadoPedido.PENDENTE:
+                    p.estado = EstadoPedido.CANCELADO
+                    self.gestor.metricas.pedidos_rejeitados += 1
 
 
     def mover_veiculos(self):
-        
-        for v in self.gestor.veiculos.values():
-            if not v.rota:
-                continue  # sem rota atribuída
-
-            # Move um passo
+        """Move apenas veículos que têm rota ativa."""
+        veiculos_em_movimento = [
+            v for v in self.gestor.veiculos.values() 
+            if v.rota and v.indice_rota < len(v.rota) - 1
+        ]
+    
+        for v in veiculos_em_movimento:
             moveu, chegou = v.mover_um_passo(self.gestor.grafo, self.tempo_atual)
             
             if not moveu:

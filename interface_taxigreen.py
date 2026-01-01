@@ -10,6 +10,8 @@ class InterfaceTaxiGreen:
 
     def __init__(self, simulador):
         self.simulador = simulador
+        self.simulacao_ativa = False
+        self.simulacao_pausada = False
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
         self.root.geometry("1300x800")
@@ -87,6 +89,7 @@ class InterfaceTaxiGreen:
 
         algoritmos = [
             ("A* (A-Estrela)", "astar"),
+            ("Greedy (Guloso)", "greedy"),
             ("UCS (Uniform Cost)", "ucs"),
             ("BFS (Breadth-First)", "bfs"),
             ("DFS (Depth-First)", "dfs")
@@ -343,6 +346,12 @@ class InterfaceTaxiGreen:
         self.simulador.mover_veiculos()
         self.simulador.verificar_conclusao_pedidos()
         self.simulador.verificar_recargas()
+
+        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes
+                   if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)]
+
+        self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos)
+
 
         self.simulador.tempo_atual += 1
 

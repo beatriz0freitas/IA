@@ -48,8 +48,7 @@ class Grafo:
     def get_no(self, id_no: str) -> No:
         return self.nos[id_no]
     
-    def adiciona_aresta(self, no_origem: str, no_destino: str, 
-                              distancia_km: float, tempoViagem_min: float):
+    def adiciona_aresta(self, no_origem: str, no_destino: str, distancia_km: float, tempoViagem_min: float):
         if no_origem not in self.nos or no_destino not in self.nos:
             raise ValueError("Nós devem ser adicionados antes das arestas.")
         self.adjacentes[no_origem].append(Aresta(no_destino, distancia_km, tempoViagem_min))
