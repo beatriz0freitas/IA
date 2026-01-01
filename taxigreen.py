@@ -4,6 +4,7 @@ from fabrica.pedidos_demo import PedidosDemo
 
 from gestao.gestor_frota import GestorFrota
 from gestao.simulador import Simulador
+from gestao.estrategia_selecao import SelecaoDeadMileage
 from interface_taxigreen import InterfaceTaxiGreen
 
 
@@ -12,7 +13,10 @@ def main():
 
     grafo = GrafoDemo.criar_grafo_demo()
     usar_custo_composto = True
-    gestor = GestorFrota(grafo)
+
+    # Usa estratégia que minimiza km sem passageiros (dead mileage)
+    estrategia = SelecaoDeadMileage(penalizacao=2.0)
+    gestor = GestorFrota(grafo, estrategia_selecao=estrategia)
 
     VeiculosDemo.criar_frota_demo(gestor)
 
