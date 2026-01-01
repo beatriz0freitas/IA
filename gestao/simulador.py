@@ -25,6 +25,7 @@ class Simulador:
         self.fila_pedidos = []                      # heap de (instante, prioridade, id_pedido_atual, pedido)
         self.pedidos_todos = []                     # histórico (para métricas)
         self.interface = interface
+
         self.gestor_transito = GestorTransito(gestor.grafo) if usar_transito else None
         self.gestor_falhas = GestorFalhas(gestor.grafo, prob_falha) if usar_falhas else None
 
@@ -54,8 +55,6 @@ class Simulador:
             )
             self.agendar_pedido(pedido)
 
-
-
     # Avança a simulação minuto a minuto - introduz novos pedidos agendados; tenta atribuir pedidos pendentes a veículos; executa viagens e recargas.
     def executar(self):
         print(f"Início da simulação (0 → {self.duracao_total} min)\n")
@@ -73,10 +72,10 @@ class Simulador:
 
             if self.tempo_atual % 5 == 0:
                 self.gestor.reposicionar_veiculos(
-                    self.tempo_atual, 
+                    self.tempo_atual,
                     [p for _, _, _, p in self.fila_pedidos]  # Pedidos futuros
                 )
-            
+
             if self.interface:
                 self.interface.atualizar()
 

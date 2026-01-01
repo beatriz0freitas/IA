@@ -103,7 +103,7 @@ class GestorFrota:
                 custo = self.calcular_custo_caminho(caminho) if caminho else float('inf')
             elif self.algoritmo_procura == "dfs":
                 caminho = dfs(self.grafo, origem, destino)
-                custo = self.calcular_custo_rota(caminho) if caminho else float('inf')
+                custo = self.calcular_custo_caminho(caminho) if caminho else float('inf')
             elif self.algoritmo_procura == "greedy":
                 custo, caminho = greedy(self.grafo, origem, destino)
             else:
@@ -196,10 +196,8 @@ class GestorFrota:
     def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
         """
         Reposiciona veículos ociosos (compatibilidade com simulador).
-        Método stub - implementação opcional.
+        Método stub - implementação opcional e desativada por padrão.
         """
-        # Implementação desativada por padrão para evitar erros
-        # todo: Se quiser ativar, adicione self.otimizar_dead_mileage = True no __init__
         return
 
 
