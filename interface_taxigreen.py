@@ -291,21 +291,21 @@ class InterfaceTaxiGreen:
     def atualizar(self):
         m = self.simulador.gestor.metricas
         metrics = m.calcular_metricas()
-        
+
         # Tempo
         self.label_tempo.config(
             text=f"Tempo: {self.simulador.tempo_atual}/{self.simulador.duracao_total} min"
         )
-        
+
         # Métricas
         total = metrics['pedidos_servicos'] + metrics['pedidos_rejeitados']
         self.metricas_labels["pedidos"].config(text=f"{metrics['pedidos_servicos']}/{total}")
         self.metricas_labels["taxa"].config(text=f"{metrics['taxa_sucesso']:.0f}%")
         self.metricas_labels["km"].config(text=f"{metrics['km_totais']:.0f}")
         self.metricas_labels["custo"].config(text=f"€{metrics['custo_total']:.0f}")
-        
+
         # Mapa
-        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes 
+        pedidos = [p for p in self.simulador.gestor.pedidos_pendentes
                   if p.estado in (EstadoPedido.PENDENTE, EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO)]
         self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos)
 
