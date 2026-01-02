@@ -230,6 +230,17 @@ class InterfaceTaxiGreen:
             highlightthickness=0
         ).pack(anchor="w", pady=2)
 
+        # Label de feedback do ride sharing
+        self.label_ride_sharing_feedback = tk.Label(
+            frame,
+            text="",
+            bg="#ffffff",
+            fg="#9ca3af",
+            font=("Inter", 9, "italic"),
+            anchor="w"
+        )
+        self.label_ride_sharing_feedback.pack(anchor="w", padx=20, pady=(0, 5))
+
         tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=15)
 
     def criar_secao_frota(self):
@@ -543,6 +554,33 @@ class InterfaceTaxiGreen:
             self.metricas_labels["ride_sharing"].config(
                 text=f"{stats['grupos_criados']} grupos"
             )
+
+            # Atualiza feedback do ride sharing (conta em tempo real)
+            num_pendentes = len([p for p in self.simulador.gestor.pedidos_pendentes
+                                if p.estado == EstadoPedido.PENDENTE])
+
+            if hasattr(self, 'label_ride_sharing_feedback'):
+                if num_pendentes == 0:
+                    self.label_ride_sharing_feedback.config(
+                        text="⏳ Nenhum pedido pendente",
+                        fg="#9ca3af"
+                    )
+                elif num_pendentes == 1:
+                    self.label_ride_sharing_feedback.config(
+                        text="⏳ Aguardando mais pedidos...",
+                        fg="#9ca3af"
+                    )
+                else:  # 2+ pedidos
+                    if self.ride_sharing_ativo.get():
+                        self.label_ride_sharing_feedback.config(
+                            text=f"✓ Ride sharing ativo ({num_pendentes} pedidos)",
+                            fg="#10b981"
+                        )
+                    else:
+                        self.label_ride_sharing_feedback.config(
+                            text=f"⚠ {num_pendentes} pedidos - ative para agrupar",
+                            fg="#f59e0b"
+                        )
         else:
             self.metricas_labels["ride_sharing"].config(text="N/A")
 
