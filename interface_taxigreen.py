@@ -556,8 +556,8 @@ class InterfaceTaxiGreen:
             )
 
             # Atualiza feedback do ride sharing (conta em tempo real)
-            num_pendentes = len([p for p in self.simulador.gestor.pedidos_pendentes
-                                if p.estado == EstadoPedido.PENDENTE])
+            num_pendentes = self.simulador.num_pedidos_pendentes_atual
+            
 
             if hasattr(self, 'label_ride_sharing_feedback'):
                 if num_pendentes == 0:
