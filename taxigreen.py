@@ -30,10 +30,9 @@ def main():
     print(f" Duração da simulação: {simulador.duracao_total} minutos")
     print(f" Trânsito dinâmico: {'Ativo' if simulador.gestor_transito else 'Desativado'}")
     if simulador.gestor_transito:
-        print(f" Hora inicial: {simulador.gestor_transito.hora_inicial}:00")
+        print(f" Hora inicial: {simulador.gestor_transito.hora_inicial:02d}:00 (meia-noite)")
     print(f" Falhas em estações: {'Ativo (prob=8%)' if simulador.gestor_falhas else 'Desativado'}")
     print(f" Ride Sharing: {'Disponível (desativado por padrão)' if simulador.gestor_ride_sharing else 'Desativado'}\n")
-
     interface.iniciar()
 
 
