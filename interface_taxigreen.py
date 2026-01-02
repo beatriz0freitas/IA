@@ -16,8 +16,9 @@ class InterfaceTaxiGreen:
         self.intervalo_atualizacao = 1000  # ms
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
-        self.root.geometry("1300x800")
+        self.root.geometry("1400x800")
         self.root.configure(bg="#f9fafb")
+        self.root.minsize(1200, 700)
         self.simulacao_ativa = False
 
         self.criar_layout_principal()
@@ -32,8 +33,8 @@ class InterfaceTaxiGreen:
         self.mapa = InterfaceMapa(self.frame_mapa, self.simulador.gestor.grafo, width=900, height=700)
 
         # ===== SIDEBAR =====
-        self.frame_direita = tk.Frame(self.root, bg="#ffffff", width=350)
-        self.frame_direita.pack(side="right", fill="both", padx=(0, 10), pady=10)
+        self.frame_direita = tk.Frame(self.root, bg="#ffffff", width=380)
+        self.frame_direita.pack(side="right", fill="y", padx=(0, 10), pady=10)
         self.frame_direita.pack_propagate(False)
 
         # Container com scroll para conteúdo
@@ -53,6 +54,7 @@ class InterfaceTaxiGreen:
         self.canvas_scroll.pack(side="left", fill="both", expand=True)
 
         self.criar_header()
+        self.criar_secao_hora_inicial()
         self.criar_secao_algoritmo()
         self.criar_secao_frota()
         self.criar_secao_metricas()
@@ -91,6 +93,73 @@ class InterfaceTaxiGreen:
                                       bg="#ffffff", fg="#10b981",
                                       font=("Helvetica", 10, "bold"))
         self.label_transito.pack(side="left")
+
+        tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=(0, 15))
+
+    def criar_secao_hora_inicial(self):
+        """Seção para escolher hora inicial"""
+        frame = tk.Frame(self.frame_conteudo, bg="#ffffff")
+        frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        tk.Label(frame, text="Hora Inicial",
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 11, "bold")).pack(anchor="w", pady=(0, 8))
+
+        # Frame para opções
+        opcoes_frame = tk.Frame(frame, bg="#f9fafb", relief="flat")
+        opcoes_frame.pack(fill="x", pady=5)
+
+        self.hora_inicial_var = tk.StringVar(value="aleatoria")
+
+        # Opção: Aleatória
+        rb_aleatorio = tk.Radiobutton(
+            opcoes_frame,
+            text="Aleatória (0-23h)",
+            variable=self.hora_inicial_var,
+            value="aleatoria",
+            bg="#f9fafb",
+            fg="#374151",
+            font=("Inter", 10),
+            selectcolor="#f9fafb",
+            activebackground="#f9fafb",
+            command=self.atualizar_hora_inicial
+        )
+        rb_aleatorio.pack(anchor="w", padx=10, pady=3)
+
+        # Opção: Escolher
+        escolher_frame = tk.Frame(opcoes_frame, bg="#f9fafb")
+        escolher_frame.pack(anchor="w", padx=10, pady=3)
+
+        rb_escolher = tk.Radiobutton(
+            escolher_frame,
+            text="Escolher:",
+            variable=self.hora_inicial_var,
+            value="escolhida",
+            bg="#f9fafb",
+            fg="#374151",
+            font=("Inter", 10),
+            selectcolor="#f9fafb",
+            activebackground="#f9fafb",
+            command=self.atualizar_hora_inicial
+        )
+        rb_escolher.pack(side="left")
+
+        # Spinbox para escolher hora (0-23)
+        self.hora_escolhida = tk.Spinbox(
+            escolher_frame,
+            from_=0,
+            to=23,
+            width=5,
+            font=("Inter", 10),
+            bg="#ffffff",
+            fg="#374151",
+            state="disabled"
+        )
+        self.hora_escolhida.pack(side="left", padx=5)
+
+        tk.Label(escolher_frame, text="h",
+                bg="#f9fafb", fg="#6b7280",
+                font=("Inter", 10)).pack(side="left")
 
         tk.Frame(self.frame_conteudo, bg="#e5e7eb", height=1).pack(fill="x", padx=20, pady=(0, 15))
 
@@ -369,6 +438,13 @@ class InterfaceTaxiGreen:
         )
         btn_pausar.pack(fill="x", padx=20, pady=(0, 15))
 
+    def atualizar_hora_inicial(self):
+        """Ativa/desativa spinbox conforme seleção"""
+        if self.hora_inicial_var.get() == "escolhida":
+            self.hora_escolhida.config(state="normal")
+        else:
+            self.hora_escolhida.config(state="disabled")
+
     def atualizar_algoritmo(self):
         algoritmo = self.algoritmo_var.get()
         self.simulador.gestor.definir_algoritmo_procura(algoritmo)
@@ -495,6 +571,19 @@ class InterfaceTaxiGreen:
     def executar_simulacao(self):
         if self.simulador.tempo_atual >= self.simulador.duracao_total:
             self.reiniciar_simulacao()
+
+        # Define hora inicial no gestor de trânsito
+        if self.simulador.gestor_transito:
+            if self.hora_inicial_var.get() == "aleatoria":
+                import random
+                hora = random.randint(0, 23)
+                self.registar_evento(f"Hora inicial aleatória: {hora}:00")
+            else:
+                hora = int(self.hora_escolhida.get())
+                self.registar_evento(f"Hora inicial escolhida: {hora}:00")
+
+            self.simulador.gestor_transito.hora_inicial = hora
+            self.simulador.gestor_transito.hora_atual = hora
 
         self.simulacao_ativa = True
         self.registar_evento(f"Simulação iniciada com {self.simulador.gestor.algoritmo_procura.upper()}")
