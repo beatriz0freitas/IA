@@ -6,6 +6,7 @@ import heapq
 from gestao.gestor_frota import GestorFrota
 from gestao.transito_dinamico import GestorTransito
 from gestao.gestor_falhas import GestorFalhas
+from gestao.ride_sharing import GestorRideSharing
 from modelo.veiculos import Veiculo, EstadoVeiculo
 from modelo.pedidos import Pedido, EstadoPedido
 
@@ -18,7 +19,8 @@ Responsável por gerir o tempo e os eventos dinâmicos da simulação.
 """
 class Simulador:
     def __init__(self, gestor: GestorFrota, duracao_total: int = 120, interface=None,
-                 usar_transito: bool = True, usar_falhas: bool = True, prob_falha: float = 0.15):
+                 usar_transito: bool = True, usar_falhas: bool = True, prob_falha: float = 0.15,
+                 usar_ride_sharing: bool = True):
         self.gestor = gestor
         self.duracao_total = duracao_total          # em minutos
         self.tempo_atual = 0
@@ -28,6 +30,7 @@ class Simulador:
 
         self.gestor_transito = GestorTransito(gestor.grafo) if usar_transito else None
         self.gestor_falhas = GestorFalhas(gestor.grafo, prob_falha) if usar_falhas else None
+        self.gestor_ride_sharing = GestorRideSharing(gestor.grafo) if usar_ride_sharing else None
 
 
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
@@ -127,9 +130,64 @@ class Simulador:
         # Remove pedidos cancelados da lista de pendentes
         pendentes = [p for p in pendentes if p.estado == EstadoPedido.PENDENTE]
 
+        # Se ride sharing ativo, aguarda acumulação de pedidos
+        if (self.gestor_ride_sharing and
+            self.interface and
+            hasattr(self.interface, 'ride_sharing_ativo') and
+            self.interface.ride_sharing_ativo.get() and
+            len(pendentes) == 1):
+
+            pedido_unico = pendentes[0]
+            tempo_espera = self.tempo_atual - pedido_unico.instante_pedido
+            if tempo_espera < 3:
+                return  # Aguarda mais tempo para possíveis agrupamentos
+
+        # Tenta ride sharing primeiro (se ativo na interface)
+        if (self.gestor_ride_sharing and
+            self.interface and
+            hasattr(self.interface, 'ride_sharing_ativo') and
+            self.interface.ride_sharing_ativo.get() and
+            len(pendentes) >= 2):
+
+            # Procura veículos disponíveis
+            veiculos_disponiveis = [v for v in self.gestor.veiculos.values()
+                                   if v.estado == EstadoVeiculo.DISPONIVEL]
+
+            for veiculo in veiculos_disponiveis:
+                if len(pendentes) < 2:
+                    break
+
+                # Tenta aplicar ride sharing
+                resultado = self.gestor_ride_sharing.aplicar_ride_sharing(
+                    pendentes, veiculo, self.gestor
+                )
+
+                if resultado:
+                    pedidos_agrupados, rota = resultado
+
+                    # Atribui grupo ao veículo
+                    veiculo.rota = rota
+                    veiculo.indice_rota = 0
+                    veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+
+                    # Marca pedidos como atribuídos
+                    for pedido in pedidos_agrupados:
+                        pedido.estado = EstadoPedido.ATRIBUIDO
+                        pedido.veiculo_atribuido = veiculo.id_veiculo
+                        pendentes.remove(pedido)
+
+                    # Log
+                    if self.interface:
+                        ids = ", ".join([p.id_pedido for p in pedidos_agrupados])
+                        self.interface.registar_evento(
+                            f"[t={self.tempo_atual}] RIDE SHARING: {veiculo.id_veiculo} -> {ids} "
+                            f"({len(pedidos_agrupados)} pedidos agrupados)"
+                        )
+
         # Ordena por prioridade (maior primeiro)
         pendentes.sort(key=lambda p: p.prioridade, reverse=True)
 
+        # Atribui pedidos restantes individualmente
         for p in pendentes:
             veiculo = self.gestor.atribuir_pedido(p, self.tempo_atual)
 
@@ -140,7 +198,7 @@ class Simulador:
             else:
                 if self.interface:
                     self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {p.id_pedido} rejeitado - "f"nenhum veículo disponível")
-                
+
                 if p.estado == EstadoPedido.PENDENTE:
                     p.estado = EstadoPedido.CANCELADO
                     self.gestor.metricas.pedidos_rejeitados += 1

@@ -101,35 +101,56 @@ class InterfaceMapa(tk.Canvas):
                                     fill="#d1d5db", width=2, 
                                     tags="arestas")
 
-    def desenhar_nos(self):
+    def desenhar_nos(self, estacoes_offline=None):
         self.delete("nos")
+        if estacoes_offline is None:
+            estacoes_offline = set()
+
         for no in self.grafo.nos.values():
             x, y = self._pos(no.id_no)
-            
+
+            # Verifica se está offline
+            is_offline = no.id_no in estacoes_offline
+
             # Cores limpas e distintas
             if no.tipo == TipoNo.RECOLHA_PASSAGEIROS:
                 cor = "#10b981"  # Verde esmeralda
                 borda = "#059669"
             elif no.tipo == TipoNo.ESTACAO_RECARGA:
-                cor = "#3b82f6"  # Azul vivo
-                borda = "#2563eb"
+                if is_offline:
+                    cor = "#64748b"  # Cinza (offline)
+                    borda = "#475569"
+                else:
+                    cor = "#3b82f6"  # Azul vivo
+                    borda = "#2563eb"
             elif no.tipo == TipoNo.POSTO_ABASTECIMENTO:
-                cor = "#ef4444"  # Vermelho coral
-                borda = "#dc2626"
+                if is_offline:
+                    cor = "#64748b"  # Cinza (offline)
+                    borda = "#475569"
+                else:
+                    cor = "#ef4444"  # Vermelho coral
+                    borda = "#dc2626"
             else:
                 cor = "#6b7280"
                 borda = "#4b5563"
-            
+
             # Nó principal
-            self.create_oval(x - NODE_RADIUS, y - NODE_RADIUS, 
+            self.create_oval(x - NODE_RADIUS, y - NODE_RADIUS,
                            x + NODE_RADIUS, y + NODE_RADIUS,
                            fill=cor, outline=borda, width=2,
                            tags=("nos", f"no_{no.id_no}"))
-            
+
+            # Marca X se offline
+            if is_offline:
+                self.create_line(x - 4, y - 4, x + 4, y + 4,
+                               fill="#ffffff", width=2, tags="nos")
+                self.create_line(x - 4, y + 4, x + 4, y - 4,
+                               fill="#ffffff", width=2, tags="nos")
+
             # Label
-            self.create_text(x, y - NODE_RADIUS - 12, 
-                           text=no.id_no.replace("_", " "), 
-                           font=("Arial", 7, "bold"), 
+            self.create_text(x, y - NODE_RADIUS - 12,
+                           text=no.id_no.replace("_", " "),
+                           font=("Arial", 7, "bold"),
                            fill="#374151",
                            tags="nos_label")
 

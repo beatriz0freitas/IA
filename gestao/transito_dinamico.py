@@ -4,6 +4,7 @@ Simula variação de congestionamento por hora do dia e zona.
 """
 
 from typing import Dict, List
+import random
 from modelo.grafo import Grafo
 
 
@@ -18,9 +19,11 @@ class GestorTransito:
     - Noite/madrugada: 22-6h (factor 0.8)
     """
 
-    def __init__(self, grafo: Grafo):
+    def __init__(self, grafo: Grafo, hora_inicial: int = None):
         self.grafo = grafo
-        self.hora_atual = 8  # Começa às 8h da manhã
+        # Hora inicial aleatória se não especificada (0-23h)
+        self.hora_inicial = hora_inicial if hora_inicial is not None else random.randint(0, 23)
+        self.hora_atual = self.hora_inicial
 
         # Zonas com maior congestionamento
         self.zonas_centro = [
@@ -38,7 +41,7 @@ class GestorTransito:
         Atualiza hora do dia com base nos minutos de simulação.
         Assume que 1 minuto de simulação = 1 minuto real.
         """
-        self.hora_atual = (8 + (minutos_simulacao // 60)) % 24
+        self.hora_atual = (self.hora_inicial + (minutos_simulacao // 60)) % 24
 
 
     def calcular_factor_hora(self, hora: int) -> float:

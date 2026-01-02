@@ -195,10 +195,33 @@ class GestorFrota:
 
     def reposicionar_veiculos(self, tempo_atual: int, pedidos_futuros: List):
         """
-        Reposiciona veículos ociosos (compatibilidade com simulador).
-        Método stub - implementação opcional e desativada por padrão.
+        Reposiciona veículos ociosos para zonas de alta demanda.
         """
-        return
+        from gestao.reposicionamento import reposicionar_veiculo_proativo
+
+        veiculos_ociosos = [v for v in self.veiculos.values()
+                           if v.estado == EstadoVeiculo.DISPONIVEL and not v.rota]
+
+        if not veiculos_ociosos:
+            return
+
+        reposicionamentos = []
+        for veiculo in veiculos_ociosos:
+            zona_alvo = reposicionar_veiculo_proativo(
+                veiculo, pedidos_futuros, tempo_atual, self.grafo, janela_previsao=10
+            )
+
+            # Se zona alvo é diferente da posição atual
+            if zona_alvo != veiculo.posicao:
+                reposicionamentos.append((veiculo.id_veiculo, veiculo.posicao, zona_alvo))
+
+                # Calcula rota para zona alvo
+                viavel, rota, _, _ = self.verificar_viabilidade_rota(veiculo, veiculo.posicao, zona_alvo)
+                if viavel and len(rota) > 1:
+                    veiculo.rota = rota
+                    veiculo.indice_rota = 0
+
+        return reposicionamentos
 
 
     # ==========================================================
