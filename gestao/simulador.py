@@ -32,6 +32,9 @@ class Simulador:
         self.gestor_falhas = GestorFalhas(gestor.grafo, prob_falha) if usar_falhas else None
         self.gestor_ride_sharing = GestorRideSharing(gestor.grafo) if usar_ride_sharing else None
 
+        # Para feedback na interface
+        self.num_pedidos_pendentes_atual = 0
+
 
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
     def agendar_pedido(self, pedido: Pedido):
@@ -115,6 +118,9 @@ class Simulador:
         pendentes = [p for p in self.gestor.pedidos_pendentes
                      if p.estado == EstadoPedido.PENDENTE]
 
+        # Guarda número de pedidos pendentes para feedback na interface
+        self.num_pedidos_pendentes_atual = len(pendentes)
+
         # Verifica pedidos expirados primeiro
         for p in pendentes:
             if p.expirou(self.tempo_atual):
@@ -130,7 +136,14 @@ class Simulador:
         # Remove pedidos cancelados da lista de pendentes
         pendentes = [p for p in pendentes if p.estado == EstadoPedido.PENDENTE]
 
-        # Se ride sharing ativo, aguarda acumulação de pedidos
+        # SEMPRE aguarda 2 minutos antes de atribuir qualquer pedido (simula delay real de processamento)
+        if len(pendentes) > 0:
+            pedido_mais_antigo = min(pendentes, key=lambda p: p.instante_pedido)
+            tempo_espera = self.tempo_atual - pedido_mais_antigo.instante_pedido
+            if tempo_espera < 2:
+                return  # Aguarda pelo menos 2 minutos antes de processar
+
+        # Se ride sharing ativo E há apenas 1 pedido, aguarda mais tempo para acumular
         if (self.gestor_ride_sharing and
             self.interface and
             hasattr(self.interface, 'ride_sharing_ativo') and
@@ -140,7 +153,7 @@ class Simulador:
             pedido_unico = pendentes[0]
             tempo_espera = self.tempo_atual - pedido_unico.instante_pedido
             if tempo_espera < 3:
-                return  # Aguarda mais tempo para possíveis agrupamentos
+                return  # Aguarda 3 minutos para possíveis agrupamentos
 
         # Tenta ride sharing primeiro (se ativo na interface)
         if (self.gestor_ride_sharing and
