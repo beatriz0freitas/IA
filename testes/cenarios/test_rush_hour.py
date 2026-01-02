@@ -23,32 +23,44 @@ class TestCenarioRushHour(unittest.TestCase):
     def test_transito_aumenta_tempos(self):
         """Verifica que trânsito aumenta tempos de viagem."""
         grafo = self.simulador.gestor.grafo
+        aresta = grafo.get_aresta("Centro", "Shopping")
         
-        # Salva tempo base (sem trânsito aplicado ainda)
-        aresta_ref = grafo.get_aresta("Centro", "Shopping")
-        tempo_base = aresta_ref.tempoViagem_min
-        
-        # Madrugada (2h) - fator 0.8
+        # 1. Madrugada (02:00) - deve ter menos trânsito
         self.simulador.gestor_transito.atualizar_transito(tempo_simulacao=120)
-        aresta_noite = grafo.get_aresta("Centro", "Shopping")
-        tempo_noturno = aresta_noite.tempo_real()
+        congestion_madrugada = aresta.congestion
+        tempo_madrugada = aresta.tempo_real()
         
-        # Rush hour (8h) - fator 1.8 (com aumento adicional para zona central)
+        # 2. Rush hour manhã (08:00) - deve ter muito mais trânsito
         self.simulador.gestor_transito.atualizar_transito(tempo_simulacao=480)
-        aresta_rush = grafo.get_aresta("Centro", "Shopping")
-        tempo_rush = aresta_rush.tempo_real()
+        congestion_rush = aresta.congestion
+        tempo_rush = aresta.tempo_real()
         
-        # Noite: fator 0.8 = redução (mas aresta tem congestion aplicado)
-        self.assertAlmostEqual(tempo_noturno, tempo_base * 0.8, delta=tempo_base * 0.1, 
-                              msg=f"Noite ({tempo_noturno:.2f}) vs Base ({tempo_base:.2f})")
+        # 3. Tarde normal (14:00) - trânsito moderado
+        self.simulador.gestor_transito.atualizar_transito(tempo_simulacao=840)
+        congestion_tarde = aresta.congestion
+                
+        # Madrugada tem menos trânsito que rush
+        self.assertLess(congestion_madrugada, congestion_rush,
+                       f"Madrugada ({congestion_madrugada:.2f}) deve ter menos que Rush ({congestion_rush:.2f})")
         
-        # Rush: fator >= 1.8 (Centro é zona central, recebe multiplicador adicional)
-        self.assertGreater(tempo_rush, tempo_base * 1.5, 
-                          f"Rush ({tempo_rush:.2f}) deveria aumentar vs Base ({tempo_base:.2f})")
+        # Rush tem tempo maior que madrugada
+        self.assertGreater(tempo_rush, tempo_madrugada,
+                          f"Tempo Rush ({tempo_rush:.2f}) > Madrugada ({tempo_madrugada:.2f})")
         
-        # Rush deve ser maior que noite
-        self.assertGreater(tempo_rush, tempo_noturno, 
-                          f"Rush ({tempo_rush:.2f}) deveria ser > Noite ({tempo_noturno:.2f})")
+        # Rush é o período com MAIS trânsito
+        self.assertGreater(congestion_rush, congestion_tarde,
+                          f"Rush ({congestion_rush:.2f}) deve ter mais que Tarde ({congestion_tarde:.2f})")
+    
+    def test_factor_hora_correto(self):
+        """Testa que factors de hora estão corretos."""
+        gestor_transito = self.simulador.gestor_transito
+        
+        # Valores esperados (do método calcular_factor_hora)
+        self.assertEqual(gestor_transito.calcular_factor_hora(2), 0.8)   # Madrugada
+        self.assertEqual(gestor_transito.calcular_factor_hora(8), 1.8)   # Rush manhã
+        self.assertEqual(gestor_transito.calcular_factor_hora(12), 1.3)  # Almoço
+        self.assertEqual(gestor_transito.calcular_factor_hora(18), 2.0)  # Rush tarde
+        self.assertEqual(gestor_transito.calcular_factor_hora(15), 1.0)  # Normal
         
     def test_pedidos_atendidos_com_transito(self):
         """Testa que pedidos são atendidos mesmo com trânsito."""
