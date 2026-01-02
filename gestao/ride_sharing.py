@@ -45,7 +45,7 @@ class GestorRideSharing:
     4. Desvio aceitável de rota
     """
     
-    def __init__(self, grafo: Grafo, raio_agrupamento_km: float = 2.0, janela_temporal_min: int = 5, desvio_maximo_km: float = 3.0):
+    def __init__(self, grafo: Grafo, raio_agrupamento_km: float = 5.0, janela_temporal_min: int = 10, desvio_maximo_km: float = 8.0):
 
         self.grafo = grafo
         self.raio_agrupamento = raio_agrupamento_km

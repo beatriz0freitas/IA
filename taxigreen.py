@@ -20,7 +20,7 @@ def main():
 
     VeiculosDemo.criar_frota_demo(gestor)
 
-    simulador = Simulador(gestor, duracao_total=60, usar_transito=True, usar_falhas=True, prob_falha=0.08)  # 60 min, 8% falhas
+    simulador = Simulador(gestor, duracao_total=60, usar_transito=True, usar_falhas=True, prob_falha=0.08, usar_ride_sharing=True)  # 60 min, 8% falhas
     interface = InterfaceTaxiGreen(simulador)
     simulador.interface = interface
 
@@ -29,7 +29,10 @@ def main():
     print(f"\n Pedidos agendados: {len(simulador.fila_pedidos)}")
     print(f" Duração da simulação: {simulador.duracao_total} minutos")
     print(f" Trânsito dinâmico: {'Ativo' if simulador.gestor_transito else 'Desativado'}")
-    print(f" Falhas em estações: {'Ativo (prob=8%)' if simulador.gestor_falhas else 'Desativado'}\n")
+    if simulador.gestor_transito:
+        print(f" Hora inicial: {simulador.gestor_transito.hora_inicial}:00")
+    print(f" Falhas em estações: {'Ativo (prob=8%)' if simulador.gestor_falhas else 'Desativado'}")
+    print(f" Ride Sharing: {'Disponível (desativado por padrão)' if simulador.gestor_ride_sharing else 'Desativado'}\n")
 
     interface.iniciar()
 
