@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import heapq
-from interface_mapa import InterfaceMapa
+from interface.interface_mapa import InterfaceMapa
 from modelo.pedidos import EstadoPedido
 from modelo.veiculos import EstadoVeiculo
 from gestao.metricas import Metricas
