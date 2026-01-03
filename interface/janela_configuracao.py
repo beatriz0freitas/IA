@@ -303,19 +303,22 @@ class JanelaConfiguracao:
         else:
             self.falhas_config_frame.pack_forget()
     
-    def validar_e_continuar(self):
-        """Valida configurações e passa para próxima janela."""
+    def validar_e_iniciar(self):
+        """Valida configurações e inicia simulação."""
         self.config = {
-            'duracao': self.duracao_var.get(),
-            'hora_tipo': self.hora_tipo_var.get(),
-            'hora_escolhida': int(self.hora_spinbox.get()) if self.hora_tipo_var.get() == "escolhida" else None,
-            'algoritmo': self.algoritmo_var.get(),
-            'estrategia': self.estrategia_var.get(),
-            'usar_transito': self.transito_var.get(),
-            'usar_falhas': self.falhas_var.get(),
-            'prob_falha': float(self.prob_falha_spinbox.get()) if self.falhas_var.get() else 0.0
+            'reposicionamento': self.reposicionamento_var.get(),
+            'ride_sharing': self.ride_sharing_var.get(),
+            'tipo_pedidos': self.pedidos_tipo_var.get(),
+            'num_pedidos': self.num_pedidos_var.get()
+                if self.pedidos_tipo_var.get() == "aleatorios"
+                else 0
         }
-        
+
+        # Só adiciona parâmetros se ride sharing estiver ativo
+        if self.ride_sharing_var.get():
+            self.config['raio_agrupamento'] = self.raio_var.get()
+            self.config['janela_temporal'] = self.janela_var.get()
+
         self.continuar = True
         self.root.destroy()
     
@@ -586,5 +589,8 @@ def obter_configuracoes_simulacao() -> Dict[str, Any]:
         config_completa['hora_inicial'] = random.randint(0, 23)
     else:
         config_completa['hora_inicial'] = config_completa['hora_escolhida']
+    
+    del config_completa['hora_tipo']
+    del config_completa['hora_escolhida']
     
     return config_completa
