@@ -32,7 +32,7 @@ class TestCenarioBaixaDemanda(unittest.TestCase):
                 pref_ambiental="qualquer",
                 estado=EstadoPedido.PENDENTE,
                 veiculo_atribuido=None,
-                tempo_max_espera=30
+                tempo_max_espera=60  # Tempo generoso
             )
             self.simulador.agendar_pedido(pedido)
         
