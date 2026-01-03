@@ -36,6 +36,7 @@ def main():
     print("TaxiGreen - Sistema de Gestão Inteligente de Frota")
     print("="*60 + "\n")
     
+    # === JANELAS DE CONFIGURAÇÃO ===
     config = obter_configuracoes_simulacao()
     
     if not config:
@@ -54,7 +55,7 @@ def main():
     if config['usar_falhas']:
         print(f"   └─ Probabilidade: {config['prob_falha']*100:.0f}%")
     
-    print("\nFEATURES PEDIDO")
+    print("\n FEATURES AVANÇADAS")
     print("-" * 60)
     print(f"Reposicionamento proativo: {'✓ Ativo' if config['reposicionamento'] else '✗ Desativado'}")
     print(f"Ride Sharing: {'✓ Ativo' if config['ride_sharing'] else '✗ Desativado'}")
@@ -67,13 +68,16 @@ def main():
         print(f"   └─ Quantidade: {config['num_pedidos']}")
     print("="*60 + "\n")
     
-
+    # === CRIAÇÃO DO SISTEMA ===
+    print("Inicializando sistema...\n")
+    
     grafo = GrafoDemo.criar_grafo_demo()
     estrategia = criar_estrategia(config['estrategia'])
     gestor = GestorFrota(grafo, estrategia_selecao=estrategia)
     gestor.definir_algoritmo_procura(config['algoritmo'])
     VeiculosDemo.criar_frota_demo(gestor)
-
+    
+    # Simulador
     simulador = Simulador(
         gestor, 
         duracao_total=config['duracao'],
@@ -93,13 +97,9 @@ def main():
         simulador.gestor_ride_sharing.raio_agrupamento = config['raio_agrupamento']
         simulador.gestor_ride_sharing.janela_temporal = config['janela_temporal']
     
-    # Interface
-    interface = InterfaceTaxiGreen(simulador)
+    # Interface (passa config como parâmetro)
+    interface = InterfaceTaxiGreen(simulador, config)
     simulador.interface = interface
-    
-    # Configura flags de features na interface (para toggle durante simulação)
-    interface.reposicionamento_ativo.set(config['reposicionamento'])
-    interface.ride_sharing_ativo.set(config['ride_sharing'])
     
     # === GERAÇÃO DE PEDIDOS ===
     if config['tipo_pedidos'] == 'demo':
