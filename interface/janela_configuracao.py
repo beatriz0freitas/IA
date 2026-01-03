@@ -179,7 +179,45 @@ class JanelaConfiguracao:
                 selectcolor="#f3f4f6"
             ).pack(anchor="w", padx=15, pady=3)
         
-        # === SECÇÃO 5: FEATURES DINÂMICAS ===
+        # === SECÇÃO 5: VELOCIDADE DA SIMULAÇÃO ===
+        self.criar_secao(content, "Velocidade da Simulação")
+        
+        self.velocidade_var = tk.IntVar(value=1)
+        vel_frame = tk.Frame(content, bg="#ffffff", relief="flat")
+        vel_frame.pack(fill="x", pady=(0, 20))
+        
+        velocidades = [
+            ("1x - Normal", 1),
+            ("2x - Rápida", 2),
+            ("5x - Muito Rápida", 5),
+            ("10x - Máxima", 10)
+        ]
+        
+        for nome, valor in velocidades:
+            tk.Radiobutton(
+                vel_frame,
+                text=nome,
+                variable=self.velocidade_var,
+                value=valor,
+                bg="#ffffff", fg="#374151",
+                font=("Inter", 10),
+                selectcolor="#f3f4f6"
+            ).pack(anchor="w", padx=15, pady=3)
+        
+        # Aviso para velocidades altas
+        aviso_frame = tk.Frame(vel_frame, bg="#fef3c7", relief="flat")
+        aviso_frame.pack(fill="x", padx=15, pady=(8, 0))
+        
+        tk.Label(
+            aviso_frame,
+            text="Velocidades > 2x podem reduzir a precisão visual",
+            bg="#fef3c7", fg="#92400e",
+            font=("Inter", 8, "italic"),
+            wraplength=450,
+            justify="left"
+        ).pack(padx=8, pady=6)
+
+        # === SECÇÃO 6: FEATURES DINÂMICAS ===
         self.criar_secao(content, "Features Dinâmicas")
         
         features_frame = tk.Frame(content, bg="#ffffff", relief="flat")
