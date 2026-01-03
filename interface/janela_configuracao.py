@@ -303,24 +303,24 @@ class JanelaConfiguracao:
         else:
             self.falhas_config_frame.pack_forget()
     
-    def validar_e_iniciar(self):
-        """Valida configurações e inicia simulação."""
+    def validar_e_continuar(self):
         self.config = {
-            'reposicionamento': self.reposicionamento_var.get(),
-            'ride_sharing': self.ride_sharing_var.get(),
-            'tipo_pedidos': self.pedidos_tipo_var.get(),
-            'num_pedidos': self.num_pedidos_var.get()
-                if self.pedidos_tipo_var.get() == "aleatorios"
-                else 0
+            'duracao': self.duracao_var.get(),
+            'hora_tipo': self.hora_tipo_var.get(),
+            'hora_escolhida': int(self.hora_spinbox.get())
+                if self.hora_tipo_var.get() == "escolhida" else None,
+            'algoritmo': self.algoritmo_var.get(),
+            'estrategia': self.estrategia_var.get(),
+            'usar_transito': self.transito_var.get(),
+            'usar_falhas': self.falhas_var.get(),
+            'prob_falha': float(self.prob_falha_spinbox.get())
+                if self.falhas_var.get() else 0.0,
+            'velocidade': self.velocidade_var.get()
         }
-
-        # Só adiciona parâmetros se ride sharing estiver ativo
-        if self.ride_sharing_var.get():
-            self.config['raio_agrupamento'] = self.raio_var.get()
-            self.config['janela_temporal'] = self.janela_var.get()
 
         self.continuar = True
         self.root.destroy()
+
     
     def obter_config(self) -> Dict[str, Any]:
         """Retorna configurações escolhidas."""
@@ -533,23 +533,25 @@ class JanelaFeatures:
         self.root.destroy()
     
     def validar_e_iniciar(self):
-        """Valida configurações e inicia simulação."""
         self.config = {
             'reposicionamento': self.reposicionamento_var.get(),
             'ride_sharing': self.ride_sharing_var.get(),
-            'raio_agrupamento': self.raio_var.get() if self.ride_sharing_var.get() else 5.0,
-            'janela_temporal': self.janela_var.get() if self.ride_sharing_var.get() else 10,
             'tipo_pedidos': self.pedidos_tipo_var.get(),
-            'num_pedidos': self.num_pedidos_var.get() if self.pedidos_tipo_var.get() == "aleatorios" else 0
+            'num_pedidos': self.num_pedidos_var.get()
+                if self.pedidos_tipo_var.get() == "aleatorios"
+                else 0
         }
-        
+
+        if self.ride_sharing_var.get():
+            self.config['raio_agrupamento'] = self.raio_var.get()
+            self.config['janela_temporal'] = self.janela_var.get()
+
         self.continuar = True
         self.root.destroy()
-    
+
     def obter_config(self) -> Dict[str, Any]:
         """Retorna configurações escolhidas."""
         return self.config
-
 
 # === FUNÇÃO PRINCIPAL ===
 def obter_configuracoes_simulacao() -> Dict[str, Any]:

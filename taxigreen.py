@@ -20,109 +20,104 @@ from interface.janela_configuracao import obter_configuracoes_simulacao
 
 def criar_estrategia(nome: str):
     """Factory para criar estratégia de seleção."""
-    estrategias = {
-        'menor_distancia': SelecaoMenorDistancia(),
-        'custo_composto': SelecaoCustoComposto(FuncaoCustoComposta()),
-        'dead_mileage': SelecaoDeadMileage(penalizacao=2.0),
-        'equilibrada': SelecaoEquilibrada(),
-        'priorizar_eletricos': SelecaoPriorizarEletricos()
-    }
+    if nome == 'menor_distancia':
+        return SelecaoMenorDistancia()
+    if nome == 'custo_composto':
+        return SelecaoCustoComposto(FuncaoCustoComposta())
+    if nome == 'equilibrada':
+        return SelecaoEquilibrada()
+    if nome == 'priorizar_eletricos':
+        return SelecaoPriorizarEletricos()
     
-    return estrategias.get(nome, SelecaoDeadMileage(penalizacao=2.0))
+    # default
+    return SelecaoDeadMileage(penalizacao=2.0)
 
+def carregar_pedidos(simulador, grafo, config):
+    """
+    Carrega pedidos no simulador de acordo com a configuração.
+    """
+    if config['tipo_pedidos'] == 'demo':
+        PedidosDemo.criar_pedidos_demo(simulador)
+        return len(simulador.fila_pedidos)
+
+    # Pedidos aleatórios
+    zonas_validas = [
+        no_id for no_id, no in grafo.nos.items()
+        if no.tipo.name == 'RECOLHA_PASSAGEIROS'
+    ]
+
+    simulador.gerar_pedidos_aleatorios(
+        config['num_pedidos'],
+        zonas_validas
+    )
+    return config['num_pedidos']
 
 def main():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TaxiGreen - Sistema de Gestão Inteligente de Frota")
-    print("="*60 + "\n")
-    
-    # === JANELAS DE CONFIGURAÇÃO ===
+    print("=" * 60 + "\n")
+
+    # === CONFIGURAÇÃO ===
     config = obter_configuracoes_simulacao()
-    
     if not config:
         print("Configuração cancelada. Encerrando...")
         return
-    
+
     # === RELATÓRIO DE CONFIGURAÇÃO ===
-    print("\nCONFIGURAÇÃO DA SIMULAÇÃO")
+    print("CONFIGURAÇÃO DA SIMULAÇÃO")
     print("-" * 60)
     print(f"Duração: {config['duracao']} minutos")
     print(f"Hora inicial: {config['hora_inicial']}:00")
-    print(f"Algoritmo: {config['algoritmo'].upper()}")
-    print(f"Estratégia: {config['estrategia'].replace('_', ' ').title()}")
-    print(f"Trânsito dinâmico: {'✓ Ativo' if config['usar_transito'] else '✗ Desativado'}")
-    print(f"Sistema de falhas: {'✓ Ativo' if config['usar_falhas'] else '✗ Desativado'}")
+    print(f"Algoritmo de planeamento: {config['algoritmo'].upper()}")
+    print(f"Estratégia de seleção: {config['estrategia'].replace('_', ' ').title()}")
+    print(f"Trânsito dinâmico: {'✓' if config['usar_transito'] else '✗'}")
+    print(f"Sistema de falhas: {'✓' if config['usar_falhas'] else '✗'}")
     if config['usar_falhas']:
-        print(f"   └─ Probabilidade: {config['prob_falha']*100:.0f}%")
-    
-    print("\n FEATURES AVANÇADAS")
+        print(f"   └─ Probabilidade: {config['prob_falha'] * 100:.0f}%")
+
+    print("\nFEATURES AVANÇADAS")
     print("-" * 60)
-    print(f"Reposicionamento proativo: {'✓ Ativo' if config['reposicionamento'] else '✗ Desativado'}")
-    print(f"Ride Sharing: {'✓ Ativo' if config['ride_sharing'] else '✗ Desativado'}")
+    print(f"Reposicionamento proativo: {'✓' if config['reposicionamento'] else '✗'}")
+    print(f"Ride Sharing: {'✓' if config['ride_sharing'] else '✗'}")
     if config['ride_sharing']:
-        print(f"   ├─ Raio agrupamento: {config['raio_agrupamento']} km")
-        print(f"   └─ Janela temporal: {config['janela_temporal']} min")
-    
+        print(f"   ├─ Raio: {config['raio_agrupamento']} km")
+        print(f"   └─ Janela: {config['janela_temporal']} min")
+
     print(f"\nPedidos: {config['tipo_pedidos'].upper()}")
-    if config['tipo_pedidos'] == 'aleatorios':
-        print(f"   └─ Quantidade: {config['num_pedidos']}")
-    print("="*60 + "\n")
-    
+    print("=" * 60 + "\n")
+
     # === CRIAÇÃO DO SISTEMA ===
-    print("Inicializando sistema...\n")
-    
     grafo = GrafoDemo.criar_grafo_demo()
     estrategia = criar_estrategia(config['estrategia'])
+
     gestor = GestorFrota(grafo, estrategia_selecao=estrategia)
     gestor.definir_algoritmo_procura(config['algoritmo'])
     VeiculosDemo.criar_frota_demo(gestor)
-    
-    # Simulador
+
     simulador = Simulador(
-        gestor, 
+        gestor,
         duracao_total=config['duracao'],
         usar_transito=config['usar_transito'],
         usar_falhas=config['usar_falhas'],
         prob_falha=config['prob_falha'],
-        usar_ride_sharing=config['ride_sharing']
+        usar_ride_sharing=config['ride_sharing'],
+        velocidade=config['velocidade']
     )
-    
-    # Configura hora inicial
-    if simulador.gestor_transito:
-        simulador.gestor_transito.hora_inicial = config['hora_inicial']
-        simulador.gestor_transito.hora_atual = config['hora_inicial']
-    
-    # Configura Ride Sharing
-    if simulador.gestor_ride_sharing:
-        simulador.gestor_ride_sharing.raio_agrupamento = config['raio_agrupamento']
-        simulador.gestor_ride_sharing.janela_temporal = config['janela_temporal']
-    
-    # Interface (passa config como parâmetro)
+
+    # Aplica configuração centralizada
+    simulador.configurar(config)
+
+    # Interface
     interface = InterfaceTaxiGreen(simulador, config)
     simulador.interface = interface
-    
-    # === GERAÇÃO DE PEDIDOS ===
-    if config['tipo_pedidos'] == 'demo':
-        PedidosDemo.criar_pedidos_demo(simulador)
-        print(f"✓ {len(simulador.fila_pedidos)} pedidos demo carregados")
-    else:
-        # Pedidos aleatórios
-        zonas_validas = [
-            no_id for no_id, no in grafo.nos.items()
-            if no.tipo.name == 'RECOLHA_PASSAGEIROS'
-        ]
-        simulador.gerar_pedidos_aleatorios(
-            config['num_pedidos'], 
-            zonas_validas
-        )
-        print(f"✓ {config['num_pedidos']} pedidos aleatórios gerados")
-    
-    print(f"✓ Sistema configurado com sucesso!\n")
-    print("="*60)
-    print("▶️  Iniciando interface gráfica...")
-    print("="*60 + "\n")
-    
+
+    # === PEDIDOS ===
+    total = carregar_pedidos(simulador, grafo, config)
+    print(f"✓ {total} pedidos carregados")
+
+    print("\n▶️  Iniciando interface gráfica...\n")
     interface.iniciar()
+
 
 if __name__ == "__main__":
     main()
