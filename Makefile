@@ -17,18 +17,18 @@ help:
 	@echo " make test              		- Executa todos os testes"
 	@echo " make compare-algoritmos     - Compara algoritmos"
 	@echo " make compare-strategies     - Compara estratégias de seleção"
+	@echo " make diagnostico            - Executa diagnóstico do sistema de trânsito"
+	@echo " make test-transito          - Testa sistema de trânsito dinâmico"
+	@echo " make test-falhas            - Testa sistema de falhas"
+	@echo " make test-ride-sharing      - Testa sistema de ride-sharing"
 	@echo " make clean         			- Limpa arquivos temporários"
 	@echo ""
 
-# ==================== EXECUÇÃO ====================
 
 .PHONY: run
 run:
 	@echo "Executando simulação TaxiGreen..."
 	python3 taxigreen.py
-
-
-# ==================== TESTES ====================
 
 .PHONY: test
 test:
@@ -49,28 +49,6 @@ compare-strategies:
 diagnostico:
 	@echo "Diagnóstico do sistema de trânsito..."
 	python3 diagnostico_transito.py
-	
-# ==================== BENCHMARKS ====================
-# todo : verificar se vale a pena
-
-.PHONY: benchmark
-benchmark:
-	@echo "$(COLOR_YELLOW)⚡ Executando benchmarks de performance...$(COLOR_RESET)"
-	$(PYTHON) $(TEST_DIR)/desempenho/benchmark_algoritmos.py
-
-.PHONY: benchmark-cache
-benchmark-cache:
-	@echo "$(COLOR_YELLOW)⚡ Benchmarking sistema de cache...$(COLOR_RESET)"
-	$(PYTHON) $(TEST_DIR)/desempenho/benchmark_cache.py
-
-.PHONY: stress-test
-stress-test:
-	@echo "$(COLOR_RED)🔥 Executando stress test da frota...$(COLOR_RESET)"
-	$(PYTHON) $(TEST_DIR)/desempenho/stress_test_frota.py
-
-
-
-# ==================== TESTES ESPECÍFICOS ====================
 
 .PHONY: test-transito
 test-transito:
@@ -86,9 +64,6 @@ test-falhas:
 test-ride-sharing:
 	@echo "Testando sistema de ride-sharing..."
 	python3 -m unittest dir/integracao/test_ride_sharing.py -v
-
-
-# ==================== LIMPEZA ====================
 
 .PHONY: clean
 clean:
