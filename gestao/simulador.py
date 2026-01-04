@@ -117,7 +117,6 @@ class Simulador:
                     f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "
                     f"({pedido.posicao_inicial} → {pedido.posicao_destino})"
                 )
-                self.interface.mostrar_pedido(pedido)
 
 
 
@@ -330,7 +329,6 @@ class Simulador:
                     if self.interface:
                         self.interface.registar_evento(
                             f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
-                        self.interface.remover_pedido_visual(pedido)
 
 
     def verificar_recargas(self):
