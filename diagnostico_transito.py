@@ -46,7 +46,7 @@ def diagnosticar_transito():
     ]
     
     print("-"*80)
-    print(f"{'Horário':<20} {'Factor':<10} {'Congestion':<12} {'Tempo Real':<12} {'Variação':<10}")
+    print(f"{'Horário':<20} {'Hora Calc':<12} {'Factor':<10} {'Congestion':<12} {'Tempo Real':<12} {'Variação':<10}")
     print("-"*80)
     
     for tempo_sim, hora_str, periodo in horarios:
@@ -54,14 +54,15 @@ def diagnosticar_transito():
         gestor_transito.atualizar_transito(tempo_simulacao=tempo_sim)
         
         # Lê valores
-        factor = gestor_transito.calcular_factor_hora(gestor_transito.hora_atual)
+        hora_calculada = gestor_transito.hora_atual
+        factor = gestor_transito.calcular_factor_hora(hora_calculada)
         congestion = aresta.congestion
         tempo_real = aresta.tempo_real()
         variacao = ((tempo_real / tempo_base) - 1) * 100
         
         # Mostra
         print(f"{hora_str} ({periodo})"[:20].ljust(20), end="")
-        print(f"{factor:<10.2f} {congestion:<12.2f} {tempo_real:<12.2f} {variacao:+.1f}%")
+        print(f"{hora_calculada:<12} {factor:<10.2f} {congestion:<12.2f} {tempo_real:<12.2f} {variacao:+.1f}%")
     
     print("-"*80)
     print()

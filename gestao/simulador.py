@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List, Optional
 import random
 import heapq
+import time
 
 from gestao.gestor_frota import GestorFrota
 from gestao.transito_dinamico import GestorTransito
@@ -19,8 +20,8 @@ Responsável por gerir o tempo e os eventos dinâmicos da simulação.
 """
 class Simulador:
     def __init__(self, gestor: GestorFrota, duracao_total: int = 120, interface=None,
-                 usar_transito: bool = True, usar_falhas: bool = True, prob_falha: float = 0.15,
-                 usar_ride_sharing: bool = True):
+             usar_transito: bool = True, usar_falhas: bool = True, prob_falha: float = 0.15,
+             usar_ride_sharing: bool = True, velocidade: int = 1):
         self.gestor = gestor
         self.duracao_total = duracao_total          # em minutos
         self.tempo_atual = 0
@@ -34,6 +35,7 @@ class Simulador:
 
         # Para feedback na interface
         self.num_pedidos_pendentes_atual = 0
+        self.velocidade = max(1, velocidade)
 
 
     # Adiciona um pedido que será introduzido na simulação no instante especificado.
@@ -86,6 +88,11 @@ class Simulador:
                 self.interface.atualizar()
 
             self.tempo_atual += 1
+            
+            # Controla velocidade da simulação (interface)
+            if self.interface:
+                time.sleep(1.0 / self.velocidade)
+            
 
         print("\n" + "="*60)
         print("Simulação terminada.\n")
@@ -110,7 +117,6 @@ class Simulador:
                     f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} criado "
                     f"({pedido.posicao_inicial} → {pedido.posicao_destino})"
                 )
-                self.interface.mostrar_pedido(pedido)
 
 
 
@@ -323,10 +329,24 @@ class Simulador:
                     if self.interface:
                         self.interface.registar_evento(
                             f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
-                        self.interface.remover_pedido_visual(pedido)
 
 
     def verificar_recargas(self):
         for v in self.gestor.veiculos.values():
             if v.estado == EstadoVeiculo.DISPONIVEL:
                 self.gestor.verificar_necessidade_recarga( v, self.tempo_atual, threshold=0.25 )
+
+    def configurar(self, config):
+        """
+        Aplica configurações externas ao simulador.
+        Centraliza a lógica de setup do ambiente.
+        """
+        # Trânsito
+        if self.gestor_transito:
+            self.gestor_transito.hora_inicial = config['hora_inicial']
+            self.gestor_transito.hora_atual = config['hora_inicial']
+
+        # Ride Sharing
+        if self.gestor_ride_sharing and config.get('ride_sharing'):
+            self.gestor_ride_sharing.raio_agrupamento = config['raio_agrupamento']
+            self.gestor_ride_sharing.janela_temporal = config['janela_temporal']
