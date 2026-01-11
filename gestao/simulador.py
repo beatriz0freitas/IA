@@ -210,9 +210,18 @@ class Simulador:
             veiculo = self.gestor.atribuir_pedido(p, self.tempo_atual)
 
             if veiculo:
-                if self.interface:
-                    self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f" atribuído ao pedido {p.id_pedido}")
+                # Se veículo já está na posição de pickup, marca como EM_EXECUCAO
+                if veiculo.posicao == p.posicao_inicial:
+                    p.estado = EstadoPedido.EM_EXECUCAO
+                    veiculo.estado = EstadoVeiculo.A_SERVICO
+                    if self.interface:
+                        self.interface.registar_evento(
+                            f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "
+                            f"atribuído ao pedido {p.id_pedido} (já em posição de pickup)")
+                else:
                     veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+                    if self.interface:
+                        self.interface.registar_evento(f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f" atribuído ao pedido {p.id_pedido}")
             else:
                 if self.interface:
                     self.interface.registar_evento(f"[t={self.tempo_atual}] Pedido {p.id_pedido} rejeitado - "f"nenhum veículo disponível")

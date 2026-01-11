@@ -62,8 +62,10 @@ class TestCenarioPrioridadeUrgente(unittest.TestCase):
         self.simulador.tempo_atual = 5
         self.simulador.processar_pedidos_novos()
 
+        # Instante 7 - aguarda 2 minutos para atribuir (pedido mais antigo em t=4)
+        self.simulador.tempo_atual = 7
         self.simulador.atribuir_pedidos_pendentes()
-        
+
         # Pedido urgente deve ser atendido
         self.assertIsNotNone(pedido_urgente.veiculo_atribuido)
 

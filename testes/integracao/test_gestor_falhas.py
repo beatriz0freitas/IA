@@ -47,26 +47,25 @@ class TestGestorFalhas(unittest.TestCase):
     def test_simular_falha_aleatoria(self):
         """Testa simulação de falhas aleatórias."""
         import random
-        
+
         # Define seed para tornar teste determinístico
         random.seed(42)
-        
+
         # Com prob=0.3 e seed=42, deve haver falhas
         falhas_primeira = self.gestor_falhas.simular_falha_aleatoria(tempo_atual=20)
-        
-        # Reset seed e testa novamente
-        random.seed(42)
-        falhas_segunda = self.gestor_falhas.simular_falha_aleatoria(tempo_atual=20)
-        
-        # Com mesmo seed, deve ter mesmo resultado (determinístico)
-        self.assertEqual(len(falhas_primeira), len(falhas_segunda),
-                        "Com mesmo seed, deve ter mesmo número de falhas")
-        
+
         # Testa que método retorna lista
         self.assertIsInstance(falhas_primeira, list)
-        
-        # Remove seed para não afetar outros testes
-        random.seed()
+
+        # Cria novo gestor com mesmo seed para garantir determinismo
+        self.grafo = ConfigTestes.criar_grafo_teste()
+        gestor_novo = GestorFalhas(self.grafo, prob_falha=0.3)
+        random.seed(42)
+        falhas_segunda = gestor_novo.simular_falha_aleatoria(tempo_atual=20)
+
+        # Com mesmo seed e mesmo estado inicial, deve ter mesmo resultado
+        self.assertEqual(len(falhas_primeira), len(falhas_segunda),
+                        "Com mesmo seed, deve ter mesmo número de falhas")
 
     def test_obter_estado_estacoes(self):
         """Testa estado global das estações."""

@@ -26,7 +26,7 @@ class TestRideSharing(unittest.TestCase):
         p1 = Pedido(
             id_pedido="P1",
             posicao_inicial="Centro",
-            posicao_destino="Aeroporto",
+            posicao_destino="Praça",
             passageiros=2,
             instante_pedido=10,
             prioridade=1,
@@ -34,11 +34,11 @@ class TestRideSharing(unittest.TestCase):
             estado=EstadoPedido.PENDENTE,
             veiculo_atribuido=None
         )
-        
+
         p2 = Pedido(
             id_pedido="P2",
             posicao_inicial="Centro",
-            posicao_destino="Shopping", 
+            posicao_destino="Praça",
             passageiros=1,
             instante_pedido=12,
             prioridade=1,
@@ -46,7 +46,8 @@ class TestRideSharing(unittest.TestCase):
             estado=EstadoPedido.PENDENTE,
             veiculo_atribuido=None
         )
-        
+
+        # Mesma origem, mesmo destino - compatível espacialmente
         compativel = self.gestor_rs.pedidos_compativel_espacial(p1, p2)
         self.assertTrue(compativel)
     

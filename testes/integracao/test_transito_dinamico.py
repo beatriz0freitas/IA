@@ -10,9 +10,9 @@ class TestTransitoDinamico(unittest.TestCase):
     
     def setUp(self):
         from gestao.transito_dinamico import GestorTransito
-        
+
         self.grafo = ConfigTestes.criar_grafo_teste()
-        self.gestor_transito = GestorTransito(self.grafo)
+        self.gestor_transito = GestorTransito(self.grafo, hora_inicial=0)
     
     def test_factor_hora_rush_manha(self):
         """Testa fator durante rush da manhã."""
