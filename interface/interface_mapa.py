@@ -3,7 +3,11 @@ from modelo.grafo import Grafo, TipoNo
 
 NODE_RADIUS = 10
 VEHICLE_SIZE = 8
-SCALE = 40 
+SCALE = 40
+
+# Rasto / rota percorrida
+TRAIL_WIDTH = 6
+
 
 class InterfaceMapa(tk.Canvas):
     def __init__(self, parent, grafo: Grafo, width=900, height=700):
@@ -12,7 +16,7 @@ class InterfaceMapa(tk.Canvas):
         self.width = width
         self.height = height
         self.pack(expand=True, fill="both")
-        
+
         self.veiculos_desenhados = {}
         self.pedidos_desenhados = {}
         self.rotas_pedidos = {}
@@ -20,12 +24,23 @@ class InterfaceMapa(tk.Canvas):
         self.pos_cache = {}
         self.grafo_desenhado = False
         self.tooltip = None
-        
+
+        # Paleta para cores por pedido (evita crash no obter_cor_pedido)
+        self.paleta_cores = [
+            "#8b5cf6", "#22c55e", "#06b6d4", "#f97316", "#ef4444",
+            "#a855f7", "#eab308", "#14b8a6", "#3b82f6", "#ec4899",
+        ]
+        self.proximo_indice_cor = 0
+
+        # ---- NOVO: linhas de rasto por (veículo,pedido) e pid anterior por veículo ----
+        self.trail_lines = {}          # (vid, pid) -> line_id
+        self.last_pid_by_vehicle = {}  # vid -> last_pid
+
         self.calcular_escala_e_offset()
-        
+
         self.desenhar_grafo_estatico()
         self.draw_legend()
-        
+
         # Eventos de hover
         self.bind("<Motion>", self.on_mouse_move)
         self.bind("<Leave>", self.on_mouse_leave)
@@ -33,49 +48,46 @@ class InterfaceMapa(tk.Canvas):
         self.vehicle_items = {}      # id_veiculo -> (shadow_id, rect_id, label_id)
         self.vehicle_pixel = {}      # id_veiculo -> (x, y) posição atual em pixels
         self.anim_job = {}           # id_veiculo -> after_id (para cancelar animações)
-        self.dest_lines = {}   # id_veiculo -> line_id (linha até destino)
-
-
+        self.dest_lines = {}         # id_veiculo -> line_id (linha até destino)
 
     def calcular_escala_e_offset(self):
-
         if not self.grafo.nos:
             self.offset_x = self.width // 2
             self.offset_y = self.height // 2
             self.scale = 50
             return
-        
+
         xs = [no.posicaox for no in self.grafo.nos.values()]
         ys = [no.posicaoy for no in self.grafo.nos.values()]
-        
+
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
-        
+
         largura_grafo = max_x - min_x
         altura_grafo = max_y - min_y
-        
+
         margin = 0.075
         espaco_util_width = self.width * (1 - 2 * margin)
         espaco_util_height = self.height * (1 - 2 * margin)
-        
+
         if largura_grafo > 0 and altura_grafo > 0:
             scale_x = espaco_util_width / largura_grafo
             scale_y = espaco_util_height / altura_grafo
             self.scale = min(scale_x, scale_y)
         else:
             self.scale = 50
-        
+
         centro_grafo_x = (min_x + max_x) / 2
         centro_grafo_y = (min_y + max_y) / 2
-        
+
         self.offset_x = self.width // 2 - (centro_grafo_x * self.scale)
         self.offset_y = self.height // 2 - (centro_grafo_y * self.scale)
 
-    # Converte coordenadas do grafo para pixels"""
+    # Converte coordenadas do grafo para pixels
     def _pos(self, id_no):
         if id_no in self.pos_cache:
             return self.pos_cache[id_no]
-        
+
         no = self.grafo.nos[id_no]
         x = no.posicaox * self.scale + self.offset_x
         y = no.posicaoy * self.scale + self.offset_y
@@ -85,7 +97,7 @@ class InterfaceMapa(tk.Canvas):
     def desenhar_grafo_estatico(self):
         if self.grafo_desenhado:
             return
-        
+
         self.desenhar_arestas()
         self.desenhar_nos()
         self.grafo_desenhado = True
@@ -97,9 +109,11 @@ class InterfaceMapa(tk.Canvas):
             for a in arestas:
                 if origem < a.no_destino:
                     x2, y2 = self._pos(a.no_destino)
-                    self.create_line(x1, y1, x2, y2, 
-                                    fill="#d1d5db", width=2, 
-                                    tags="arestas")
+                    self.create_line(
+                        x1, y1, x2, y2,
+                        fill="#d1d5db", width=2,
+                        tags="arestas"
+                    )
 
     def desenhar_nos(self, estacoes_offline=None):
         self.delete("nos")
@@ -114,63 +128,71 @@ class InterfaceMapa(tk.Canvas):
 
             # Cores limpas e distintas
             if no.tipo == TipoNo.RECOLHA_PASSAGEIROS:
-                cor = "#10b981"  # Verde esmeralda
+                cor = "#10b981"
                 borda = "#059669"
             elif no.tipo == TipoNo.ESTACAO_RECARGA:
                 if is_offline:
-                    cor = "#64748b"  # Cinza (offline)
+                    cor = "#64748b"
                     borda = "#475569"
                 else:
-                    cor = "#3b82f6"  # Azul vivo
+                    cor = "#3b82f6"
                     borda = "#2563eb"
             elif no.tipo == TipoNo.POSTO_ABASTECIMENTO:
                 if is_offline:
-                    cor = "#64748b"  # Cinza (offline)
+                    cor = "#64748b"
                     borda = "#475569"
                 else:
-                    cor = "#ef4444"  # Vermelho coral
+                    cor = "#ef4444"
                     borda = "#dc2626"
             else:
                 cor = "#6b7280"
                 borda = "#4b5563"
 
             # Nó principal
-            self.create_oval(x - NODE_RADIUS, y - NODE_RADIUS,
-                           x + NODE_RADIUS, y + NODE_RADIUS,
-                           fill=cor, outline=borda, width=2,
-                           tags=("nos", f"no_{no.id_no}"))
+            self.create_oval(
+                x - NODE_RADIUS, y - NODE_RADIUS,
+                x + NODE_RADIUS, y + NODE_RADIUS,
+                fill=cor, outline=borda, width=2,
+                tags=("nos", f"no_{no.id_no}")
+            )
 
             # Marca X se offline
             if is_offline:
                 self.create_line(x - 4, y - 4, x + 4, y + 4,
-                               fill="#ffffff", width=2, tags="nos")
+                                 fill="#ffffff", width=2, tags="nos")
                 self.create_line(x - 4, y + 4, x + 4, y - 4,
-                               fill="#ffffff", width=2, tags="nos")
+                                 fill="#ffffff", width=2, tags="nos")
 
             # Label
-            self.create_text(x, y - NODE_RADIUS - 12,
-                           text=no.id_no.replace("_", " "),
-                           font=("Arial", 7, "bold"),
-                           fill="#374151",
-                           tags="nos_label")
+            self.create_text(
+                x, y - NODE_RADIUS - 12,
+                text=no.id_no.replace("_", " "),
+                font=("Arial", 7, "bold"),
+                fill="#374151",
+                tags="nos_label"
+            )
 
     def draw_legend(self):
         self.delete("legenda")
-        
+
         x, y = 20, 20
-        self.create_rectangle(x - 10, y - 10, x + 200, y + 155, 
-                            fill="#ffffff", outline="#e5e7eb", width=2,
-                            tags="legenda")
-        
-        self.create_text(x + 95, y + 5, 
-                       text="Legenda", 
-                       font=("Inter", 11, "bold"), 
-                       fill="#111827",
-                       tags="legenda")
-        
-        self.create_line(x, y + 20, x + 190, y + 20,
-                        fill="#e5e7eb", width=1, tags="legenda")
-        
+        self.create_rectangle(
+            x - 10, y - 10, x + 220, y + 175,
+            fill="#ffffff", outline="#e5e7eb", width=2,
+            tags="legenda"
+        )
+
+        self.create_text(
+            x + 105, y + 5,
+            text="Legenda",
+            font=("Inter", 11, "bold"),
+            fill="#111827",
+            tags="legenda"
+        )
+
+        self.create_line(x, y + 20, x + 210, y + 20,
+                         fill="#e5e7eb", width=1, tags="legenda")
+
         items = [
             ("Zona de recolha", "#10b981", "circle"),
             ("Estação recarga", "#3b82f6", "circle"),
@@ -178,62 +200,116 @@ class InterfaceMapa(tk.Canvas):
             ("Veículo Elétrico", "#0ea5e9", "square"),
             ("Veículo Combustão", "#f59e0b", "square"),
             ("Pedido ativo", "#8b5cf6", "diamond"),
+            ("Caminho percorrido", "#94a3b8", "line"),
         ]
-        
+
         spacing = 20
         for i, (label, color, shape) in enumerate(items):
             yy = y + 35 + i * spacing
-            
+
             if shape == "circle":
-                self.create_oval(x + 5, yy - 6, x + 17, yy + 6, 
-                               fill=color, outline="", tags="legenda")
+                self.create_oval(x + 5, yy - 6, x + 17, yy + 6,
+                                 fill=color, outline="", tags="legenda")
             elif shape == "square":
-                self.create_rectangle(x + 5, yy - 6, x + 17, yy + 6, 
-                                    fill=color, outline="", tags="legenda")
+                self.create_rectangle(x + 5, yy - 6, x + 17, yy + 6,
+                                      fill=color, outline="", tags="legenda")
             elif shape == "diamond":
                 self.create_polygon(x + 11, yy - 7, x + 18, yy, x + 11, yy + 7, x + 4, yy,
-                                  fill=color, outline="", tags="legenda")
-            
-            self.create_text(x + 28, yy, 
-                           text=label, anchor="w", 
-                           font=("Inter", 9), 
-                           fill="#4b5563",
-                           tags="legenda")
+                                    fill=color, outline="", tags="legenda")
+            elif shape == "line":
+                self.create_line(x + 5, yy, x + 17, yy,
+                                 fill=color, width=4, tags="legenda")
+
+            self.create_text(
+                x + 28, yy,
+                text=label, anchor="w",
+                font=("Inter", 9),
+                fill="#4b5563",
+                tags="legenda"
+            )
 
     def obter_cor_pedido(self, pedido_id):
         if pedido_id not in self.cores_pedidos:
             self.cores_pedidos[pedido_id] = self.paleta_cores[self.proximo_indice_cor % len(self.paleta_cores)]
             self.proximo_indice_cor += 1
         return self.cores_pedidos[pedido_id]
-    
+
+    # ---------------- RASTO (seguir exatamente rota+indice_rota) ----------------
+
+    def _trail_key(self, vid: str, pid: str):
+        return (vid, pid)
+
+    def _clear_trail(self, key):
+        line_id = self.trail_lines.pop(key, None)
+        if line_id:
+            self.delete(line_id)
+
+    def _clear_all_trails_for_vehicle(self, vid: str):
+        keys = [k for k in list(self.trail_lines.keys()) if k[0] == vid]
+        for k in keys:
+            self._clear_trail(k)
+        self.last_pid_by_vehicle.pop(vid, None)
+
+    def _render_trail_from_nodes(self, key, node_ids, color: str):
+        if not node_ids or len(node_ids) < 2:
+            return
+
+        flat = []
+        for nid in node_ids:
+            x, y = self._pos(nid)
+            flat.extend([x, y])
+
+        if key not in self.trail_lines:
+            line_id = self.create_line(
+                *flat,
+                fill=color,
+                width=TRAIL_WIDTH,
+                capstyle=tk.ROUND,
+                joinstyle=tk.ROUND,
+                smooth=False,
+                tags=("trails", f"trail_{key[0]}_{key[1]}")
+            )
+            self.trail_lines[key] = line_id
+
+            self.tag_lower(line_id)
+            self.tag_raise(line_id, "arestas")
+            try:
+                self.tag_lower(line_id, "veiculos")
+            except tk.TclError:
+                pass
+        else:
+            self.coords(self.trail_lines[key], *flat)
+    # --------------------------------------------------------------------------
+
     def desenhar_pedido(self, pedido):
         pid = pedido.id_pedido
 
         if pid in self.pedidos_desenhados:
             self.delete(f"pedido_{pid}")
-        
+
         x, y = self._pos(pedido.posicao_inicial)
-        
+
         # Halo pulsante
-        self.create_oval(x - 12, y - 12, x + 12, y + 12, 
-                        fill="", outline="#c4b5fd", width=2,
-                        tags=("pedidos", f"pedido_{pid}"))
-        
+        self.create_oval(
+            x - 12, y - 12, x + 12, y + 12,
+            fill="", outline="#c4b5fd", width=2,
+            tags=("pedidos", f"pedido_{pid}")
+        )
+
         # Diamante
         marker = self.create_polygon(
-            x, y - 8,      # Topo
-            x + 8, y,      # Direita
-            x, y + 8,      # Baixo
-            x - 8, y,      # Esquerda
+            x, y - 8, x + 8, y, x, y + 8, x - 8, y,
             fill="#8b5cf6", outline="#7c3aed", width=2,
             tags=("pedidos", f"pedido_{pid}")
         )
-        
-        label = self.create_text(x, y - 20, text=pid, 
-                                font=("Inter", 8, "bold"), 
-                                fill="#6d28d9",
-                                tags=("pedidos", f"pedido_{pid}"))
-        
+
+        label = self.create_text(
+            x, y - 20, text=pid,
+            font=("Inter", 8, "bold"),
+            fill="#6d28d9",
+            tags=("pedidos", f"pedido_{pid}")
+        )
+
         self.pedidos_desenhados[pid] = (marker, label)
 
     def remover_pedido(self, pedido):
@@ -245,7 +321,7 @@ class InterfaceMapa(tk.Canvas):
     def desenhar_pedidos(self, pedidos_list):
         existentes = set(self.pedidos_desenhados.keys())
         atuais = set(p.id_pedido for p in pedidos_list)
-        
+
         for pid in existentes - atuais:
             self.remover_pedido(type('obj', (object,), {'id_pedido': pid})())
 
@@ -253,10 +329,6 @@ class InterfaceMapa(tk.Canvas):
             self.desenhar_pedido(p)
 
     def atualizar_veiculos(self, veiculos: dict, anim_ms: int = 450, frames: int = 18):
-        # NÃO apagues "veiculos" nem "destinos" aqui — senão perdes animação.
-        # Se quiseres apagar rotas antigas, apaga só as rotas (se ainda as desenhas):
-        # self.delete("rotas")
-
         # Remove veículos que já não existem
         ids_atuais = set(v.id_veiculo for v in veiculos.values())
         ids_existentes = set(self.vehicle_items.keys())
@@ -282,6 +354,9 @@ class InterfaceMapa(tk.Canvas):
                 except tk.TclError:
                     pass
 
+            # remove trails
+            self._clear_all_trails_for_vehicle(vid)
+
         # Atualiza / cria veículos existentes
         for v in veiculos.values():
             vid = v.id_veiculo
@@ -298,11 +373,39 @@ class InterfaceMapa(tk.Canvas):
             elif v.estado.value == "a_servico":
                 cor = "#10b981"
 
+            # ------------------- RASTO DO PEDIDO (exato pela rota) -------------------
+            pid = getattr(v, "id_pedido_atual", None)
+            estado = v.estado.value
+            last_pid = self.last_pid_by_vehicle.get(vid)
+
+            # terminou pedido -> apaga rasto anterior
+            if last_pid and not pid:
+                self._clear_trail(self._trail_key(vid, last_pid))
+                self.last_pid_by_vehicle[vid] = None
+
+            # mudou de pedido -> apaga rasto anterior
+            if last_pid and pid and pid != last_pid:
+                self._clear_trail(self._trail_key(vid, last_pid))
+
+            self.last_pid_by_vehicle[vid] = pid
+
+            # mostrar sempre que é suposto: pedido ativo e estados relevantes
+            trail_active = bool(pid) and (estado in ("deslocando", "a_servico"))
+
+            if trail_active and getattr(v, "rota", None) and len(v.rota) >= 2:
+                idx = max(0, min(getattr(v, "indice_rota", 0) or 0, len(v.rota) - 1))
+                percorrida = v.rota[: idx + 1]
+
+                key = self._trail_key(vid, pid)
+                cor_rota = self.obter_cor_pedido(pid)
+                self._render_trail_from_nodes(key, percorrida, cor_rota)
+            # ------------------------------------------------------------------------
+
             # Se ainda não existe, cria no target (sem animação inicial)
             if vid not in self.vehicle_items:
                 x, y = target_x, target_y
 
-                # linha destino (se houver), criada já
+                # linha destino (se houver)
                 destino = v.rota[-1] if getattr(v, "rota", None) else None
                 if destino and destino in self.grafo.nos and destino != v.posicao:
                     dx, dy = self._pos(destino)
@@ -377,26 +480,27 @@ class InterfaceMapa(tk.Canvas):
 
             self._animar_veiculo(vid, start_x, start_y, target_x, target_y, anim_ms, frames)
 
-
     def _colocar_veiculo_em(self, vid: str, x: float, y: float):
         shadow_id, rect_id, label_id = self.vehicle_items[vid]
 
-        self.coords(shadow_id,
-                    x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
-                    x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2)
+        self.coords(
+            shadow_id,
+            x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
+            x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2
+        )
 
-        self.coords(rect_id,
-                    x - VEHICLE_SIZE, y - VEHICLE_SIZE,
-                    x + VEHICLE_SIZE, y + VEHICLE_SIZE)
+        self.coords(
+            rect_id,
+            x - VEHICLE_SIZE, y - VEHICLE_SIZE,
+            x + VEHICLE_SIZE, y + VEHICLE_SIZE
+        )
 
-        self.coords(label_id,
-                    x, y + VEHICLE_SIZE + 12)
-
+        self.coords(label_id, x, y + VEHICLE_SIZE + 12)
         self.vehicle_pixel[vid] = (x, y)
 
     def _animar_veiculo(self, vid: str, sx: float, sy: float, tx: float, ty: float,
                         anim_ms: int, frames: int):
-        # Interpolação linear (chega bem para “visual cues”)
+        # Interpolação linear
         step_ms = max(10, anim_ms // max(1, frames))
         dx = (tx - sx) / frames
         dy = (ty - sy) / frames
@@ -412,12 +516,10 @@ class InterfaceMapa(tk.Canvas):
 
         frame(0, sx, sy)
 
-
-
     # Mostra tooltip apenas ao passar o rato sobre elemento
     def on_mouse_move(self, event):
         x, y = event.x, event.y
-    
+
         self.delete("tooltip")
         self.tooltip = None
 
@@ -427,12 +529,10 @@ class InterfaceMapa(tk.Canvas):
             for i in range(len(coords) - 1):
                 x1, y1 = coords[i]
                 x2, y2 = coords[i + 1]
-                
-                # Distância do ponto à linha
                 if self.distancia_ponto_linha(x, y, x1, y1, x2, y2) < 8:
                     self.mostrar_tooltip_rota(x, y, pedido_id, info_rota)
                     return
-        
+
         # Verifica veículos
         if hasattr(self, 'veiculos_ref'):
             for v in self.veiculos_ref.values():
@@ -440,7 +540,7 @@ class InterfaceMapa(tk.Canvas):
                 if ((x - vx) ** 2 + (y - vy) ** 2) ** 0.5 <= VEHICLE_SIZE + 3:
                     self.mostrar_tooltip_veiculo(x, y, v)
                     return
-        
+
         # Verifica nós
         for no_id, no in self.grafo.nos.items():
             nx, ny = self._pos(no_id)
@@ -452,18 +552,17 @@ class InterfaceMapa(tk.Canvas):
         linha_len_sq = (x2 - x1) ** 2 + (y2 - y1) ** 2
         if linha_len_sq == 0:
             return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5
-        
+
         t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / linha_len_sq))
         proj_x = x1 + t * (x2 - x1)
         proj_y = y1 + t * (y2 - y1)
-        
-        return ((px - proj_x) ** 2 + (py - proj_y) ** 2) ** 0.5
 
+        return ((px - proj_x) ** 2 + (py - proj_y) ** 2) ** 0.5
 
     def mostrar_tooltip_rota(self, x, y, pedido_id, info_rota):
         veiculo = info_rota['veiculo']
         cor = info_rota['cor']
-        
+
         # Encontra o pedido
         pedido = None
         if hasattr(self, 'pedidos_ref'):
@@ -471,47 +570,47 @@ class InterfaceMapa(tk.Canvas):
                 if p.id_pedido == pedido_id:
                     pedido = p
                     break
-        
+
         width = 180
         height = 105
-        
+
         tx = x + 15
         ty = y - height - 10
-        
+
         self.create_rectangle(tx + 3, ty + 3, tx + width + 3, ty + height + 3,
-                            fill="#e5e7eb", outline="", tags="tooltip")
-        
+                              fill="#e5e7eb", outline="", tags="tooltip")
+
         self.create_rectangle(tx, ty, tx + width, ty + height,
-                            fill="#ffffff", outline=cor, width=3, tags="tooltip")
-        
+                              fill="#ffffff", outline=cor, width=3, tags="tooltip")
+
         self.create_rectangle(tx, ty, tx + width, ty + 25,
-                            fill=cor, outline="", tags="tooltip")
-        
+                              fill=cor, outline="", tags="tooltip")
+
         self.create_text(tx + width // 2, ty + 12,
-                       text=f"Rota do Pedido {pedido_id}",
-                       font=("Arial", 9, "bold"),
-                       fill="#ffffff", tags="tooltip")
-        
+                         text=f"Rota do Pedido {pedido_id}",
+                         font=("Arial", 9, "bold"),
+                         fill="#ffffff", tags="tooltip")
+
         # Informações
         if pedido:
             info_lines = [
                 f"Veículo: {veiculo.id_veiculo}",
                 f"Origem: {pedido.posicao_inicial.replace('_', ' ')}",
                 f"Destino: {pedido.posicao_destino.replace('_', ' ')}",
-                f"Passageiros: {pedido.passageiros} 👥",
+                "Passageiros: " + str(pedido.passageiros),
             ]
         else:
             info_lines = [
                 f"Veículo: {veiculo.id_veiculo}",
-                f"Em deslocação...",
+                "Em deslocação...",
             ]
-        
+
         for i, linha in enumerate(info_lines):
             self.create_text(tx + 10, ty + 40 + i * 16,
-                           text=linha, anchor="w",
-                           font=("Arial", 8),
-                           fill="#374151", tags="tooltip")
-        
+                             text=linha, anchor="w",
+                             font=("Arial", 8),
+                             fill="#374151", tags="tooltip")
+
         self.tag_raise("tooltip")
 
     def mostrar_tooltip_no(self, x, y, no):
@@ -543,28 +642,26 @@ class InterfaceMapa(tk.Canvas):
                               fill="#ffffff", outline="#d1d5db", width=2, tags="tooltip")
 
         self.create_text(tx + text_width // 2, ty + 10,
-                         text=texto, font=("Arial", 9, "bold"), 
+                         text=texto, font=("Arial", 9, "bold"),
                          fill="#111827", tags="tooltip")
 
-        self.create_text( tx + text_width // 2, ty + 26,
-                          text=subtexto, font=("Arial", 8),
-                          fill="#6b7280", tags="tooltip")
+        self.create_text(tx + text_width // 2, ty + 26,
+                         text=subtexto, font=("Arial", 8),
+                         fill="#6b7280", tags="tooltip")
 
         self.tag_raise("tooltip")
-
 
     def mostrar_tooltip_veiculo(self, x, y, veiculo):
         tipo = "Elétrico" if veiculo.tipo_veiculo() == "eletrico" else "Combustão"
         autonomia_pct = int((veiculo.autonomia_km / veiculo.autonomiaMax_km) * 100)
 
         if autonomia_pct > 60:
-            cor_bateria = "#10b981"  # Verde
+            cor_bateria = "#10b981"
         elif autonomia_pct > 30:
-            cor_bateria = "#f59e0b"  # Laranja
+            cor_bateria = "#f59e0b"
         else:
-            cor_bateria = "#ef4444"  # Vermelho
+            cor_bateria = "#ef4444"
 
-        # Estados em português
         estados_pt = {
             "disponivel": "Disponível",
             "a_servico": "Com Passageiros",
@@ -582,72 +679,48 @@ class InterfaceMapa(tk.Canvas):
         tx = x + 15
         ty = y - height - 10
 
-        self.create_rectangle(
-            tx + 3, ty + 3,
-            tx + width + 3, ty + height + 3,
-            fill="#e5e7eb", outline="",
-            tags="tooltip"
-        )
+        self.create_rectangle(tx + 3, ty + 3, tx + width + 3, ty + height + 3,
+                              fill="#e5e7eb", outline="", tags="tooltip")
 
-        self.create_rectangle(
-            tx, ty,
-            tx + width, ty + height,
-            fill="#ffffff", outline="#d1d5db", width=2,
-            tags="tooltip"
-        )
+        self.create_rectangle(tx, ty, tx + width, ty + height,
+                              fill="#ffffff", outline="#d1d5db", width=2,
+                              tags="tooltip")
 
-        self.create_text(
-            tx + width // 2, ty + 15,
-            text=f"{veiculo.id_veiculo}",
-            font=("Arial", 10, "bold"),
-            fill="#111827",
-            tags="tooltip"
-        )
+        self.create_text(tx + width // 2, ty + 15,
+                         text=f"{veiculo.id_veiculo}",
+                         font=("Arial", 10, "bold"),
+                         fill="#111827",
+                         tags="tooltip")
 
-        self.create_text(
-            tx + width // 2, ty + 35,
-            text=tipo,
-            font=("Arial", 9),
-            fill="#4b5563",
-            tags="tooltip"
-        )
+        self.create_text(tx + width // 2, ty + 35,
+                         text=tipo,
+                         font=("Arial", 9),
+                         fill="#4b5563",
+                         tags="tooltip")
 
-        # Barra de autonomia (fundo)
         barra_x = tx + padding
         barra_y = ty + 50
         barra_width = width - padding * 2
         barra_height = 8
 
-        self.create_rectangle(
-            barra_x, barra_y,
-            barra_x + barra_width, barra_y + barra_height,
-            fill="#e5e7eb", outline="",
-            tags="tooltip"
-        )
+        self.create_rectangle(barra_x, barra_y, barra_x + barra_width, barra_y + barra_height,
+                              fill="#e5e7eb", outline="", tags="tooltip")
 
         preenchimento = int((barra_width * autonomia_pct) / 100)
-        self.create_rectangle(
-            barra_x, barra_y,
-            barra_x + preenchimento, barra_y + barra_height,
-            fill=cor_bateria, outline="",
-            tags="tooltip"
-        )
+        self.create_rectangle(barra_x, barra_y, barra_x + preenchimento, barra_y + barra_height,
+                              fill=cor_bateria, outline="", tags="tooltip")
 
-        self.create_text(
-            tx + width // 2, barra_y + barra_height // 2,
-            text=f"{autonomia_pct}%",
-            font=("Arial", 7, "bold"),
-            fill="#ffffff",
-            tags="tooltip"
-        )
+        self.create_text(tx + width // 2, barra_y + barra_height // 2,
+                         text=f"{autonomia_pct}%",
+                         font=("Arial", 7, "bold"),
+                         fill="#ffffff",
+                         tags="tooltip")
 
-        self.create_text(
-            tx + width // 2, ty + 75,
-            text=estado_texto,
-            font=("Arial", 8),
-            fill="#6b7280",
-            tags="tooltip"
-        )
+        self.create_text(tx + width // 2, ty + 75,
+                         text=estado_texto,
+                         font=("Arial", 8),
+                         fill="#6b7280",
+                         tags="tooltip")
 
         self.tag_raise("tooltip")
 
@@ -662,7 +735,7 @@ class InterfaceMapa(tk.Canvas):
 
         self.pedidos_ref = pedidos
         self.veiculos_ref = veiculos
-        
+
         self.desenhar_pedidos(pedidos)
         self.atualizar_veiculos(veiculos)
         self.draw_legend()
