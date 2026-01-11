@@ -99,10 +99,8 @@ class Simulador:
         print("Simulação terminada.\n")
         print("="*60)
 
-        metricas = self.gestor.metricas.calcular_metricas()
-        print("Resultados Finais:")
-        for chave, valor in metricas.items():
-            print(f"  {chave}: {valor}")
+        metricas = self.gestor.metricas.calcular_metricas_extensas(self.gestor.veiculos)
+        print(self.gestor.metricas.formatar_relatorio(metricas))
 
     # ==========================================================
     # Processamento interno
