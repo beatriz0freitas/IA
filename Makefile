@@ -58,12 +58,12 @@ test-transito:
 .PHONY: test-falhas
 test-falhas:
 	@echo " Testando sistema de falhas..."
-	python3 -m unittest dir/integracao/test_gestor_falhas.py -v
+	python3 -m unittest testes/integracao/test_gestor_falhas.py -v
 
 .PHONY: test-ride-sharing
 test-ride-sharing:
 	@echo "Testando sistema de ride-sharing..."
-	python3 -m unittest dir/integracao/test_ride_sharing.py -v
+	python3 -m unittest testes/integracao/test_ride_sharing.py -v
 
 .PHONY: clean
 clean:
