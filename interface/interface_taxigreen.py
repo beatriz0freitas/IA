@@ -1,10 +1,5 @@
 """
-Interface TaxiGreen Final
-Completamente visível bem organizada.
-
-Ajustes de proporções:
-- Sidebar ligeiramente mais larga e mapa ligeiramente maior para equilibrar layout.
-- Mantém botões: Iniciar -> Acabar, Pausar <-> Retomar.
+Interface TaxiGreen
 """
 
 import tkinter as tk
@@ -17,18 +12,27 @@ import heapq
 
 
 class InterfaceTaxiGreen:
+    WINDOW_W = 1240
+    WINDOW_H = 780
+
+    SIDEBAR_W = 450
+    SIDEBAR_FOOTER_H = 92  
+
+    PAD_X_OUT = 4
+    PAD_Y_OUT = 4
+    GAP_X = 3
 
     def __init__(self, simulador, config: dict):
         self.simulador = simulador
         self.config = config
+
         self.simulacao_ativa = False
-        self.velocidade = config.get('velocidade', 1)
+        self.velocidade = config.get("velocidade", 1)
         self.intervalo_atualizacao = self.calcular_intervalo(self.velocidade)
 
-        # Ajuste leve: dá mais “ar” e evita desequilíbrios (com 3 colunas em pedidos)
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
-        self.root.geometry("1450x1000")
+        self.root.geometry(f"{self.WINDOW_W}x{self.WINDOW_H}")
         self.root.configure(bg="#f3f4f6")
         self.root.resizable(False, False)
 
@@ -43,72 +47,110 @@ class InterfaceTaxiGreen:
         return intervalos.get(velocidade, 1000)
 
     def criar_interface(self):
-        # MAPA (mais espaço, acompanha o aumento total)
+        # Root: 1 linha, 2 colunas
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=0)
+
         frame_mapa = tk.Frame(self.root, bg="#f3f4f6")
-        frame_mapa.pack(side="left", fill="both", expand=True, padx=(6, 3), pady=6)
+        frame_mapa.grid(
+            row=0, column=0, sticky="nsew",
+            padx=(self.PAD_X_OUT, self.GAP_X), pady=self.PAD_Y_OUT
+        )
+
+        sidebar = tk.Frame(self.root, bg="#ffffff", width=self.SIDEBAR_W)
+        sidebar.grid(
+            row=0, column=1, sticky="nsew",
+            padx=(self.GAP_X, self.PAD_X_OUT), pady=self.PAD_Y_OUT
+        )
+        sidebar.grid_propagate(False)
+
+        sidebar.grid_rowconfigure(0, weight=1)
+        sidebar.grid_rowconfigure(1, weight=0, minsize=self.SIDEBAR_FOOTER_H)
+        sidebar.grid_columnconfigure(0, weight=1)
+
+        sidebar_content = tk.Frame(sidebar, bg="#ffffff")
+        sidebar_content.grid(row=0, column=0, sticky="nsew")
+
+        sidebar_footer = tk.Frame(sidebar, bg="#ffffff", height=self.SIDEBAR_FOOTER_H)
+        sidebar_footer.grid(row=1, column=0, sticky="ew")
+        sidebar_footer.grid_propagate(False)
+
+        tk.Frame(sidebar_footer, bg="#e5e7eb", height=1).pack(fill="x")
+
+        mapa_w = self.WINDOW_W - self.SIDEBAR_W - (self.PAD_X_OUT * 2) - (self.GAP_X * 2)
+        mapa_h = self.WINDOW_H - (self.PAD_Y_OUT * 2)
 
         self.mapa = InterfaceMapa(
             frame_mapa,
             self.simulador.gestor.grafo,
-            width=940, height=738
+            width=max(600, mapa_w),
+            height=max(520, mapa_h),
         )
 
-        # SIDEBAR (ligeiramente mais larga para 3 colunas caberem melhor)
-        frame_sidebar = tk.Frame(self.root, bg="#ffffff", width=520)
-        frame_sidebar.pack(side="right", fill="both", padx=(3, 6), pady=6)
-        frame_sidebar.pack_propagate(False)
+        # Sidebar content
+        componentes = ComponentesUI(sidebar_content, self.config)
 
-        componentes = ComponentesUI(frame_sidebar, self.config)
+        widgets_header = componentes.criar_header(sidebar_content)
+        self.label_tempo = widgets_header["label_tempo"]
+        self.label_hora = widgets_header["label_hora"]
+        self.label_transito = widgets_header["label_transito"]
 
-        widgets_header = componentes.criar_header(frame_sidebar)
-        self.label_tempo = widgets_header['label_tempo']
-        self.label_hora = widgets_header['label_hora']
-        self.label_transito = widgets_header['label_transito']
+        componentes.criar_info_config(sidebar_content, len(self.simulador.fila_pedidos))
 
-        componentes.criar_info_config(frame_sidebar, len(self.simulador.fila_pedidos))
+        cards_frota = componentes.criar_frota_compacta(sidebar_content)
+        self.card_disponiveis = cards_frota["disponiveis"]
+        self.card_servico = cards_frota["servico"]
+        self.card_recarga = cards_frota["recarga"]
+        self.card_indisp = cards_frota["indisp"]
 
-        cards_frota = componentes.criar_frota_compacta(frame_sidebar)
-        self.card_disponiveis = cards_frota['disponiveis']
-        self.card_servico = cards_frota['servico']
-        self.card_recarga = cards_frota['recarga']
-        self.card_indisp = cards_frota['indisp']
-
-        widgets_pedidos = componentes.criar_pedidos_lista(frame_sidebar)
+        widgets_pedidos = componentes.criar_pedidos_lista(sidebar_content)
         self.gestor_pedidos_visuais = GestorPedidosVisuais(
-            widgets_pedidos['container'],
-            widgets_pedidos['canvas'],
-            widgets_pedidos['label_contador'],
-            componentes
+            widgets_pedidos["container"],
+            widgets_pedidos["canvas"],
+            widgets_pedidos["label_contador"],
+            componentes,
         )
 
-        self.metricas_labels = componentes.criar_metricas_completas(frame_sidebar)
-        self.text_log = componentes.criar_log(frame_sidebar)
+        self.metricas_labels = componentes.criar_metricas_completas(sidebar_content)
+        self.text_log = componentes.criar_log(sidebar_content)
 
-        botoes = componentes.criar_botoes(frame_sidebar)
-        self.btn_iniciar = botoes['btn_iniciar']
-        self.btn_pausar = botoes['btn_pausar']
+        # Botões (footer da sidebar)
+        btn_wrap = tk.Frame(sidebar_footer, bg="#ffffff")
+        btn_wrap.pack(fill="both", expand=True, padx=10, pady=8)
 
-        self.btn_iniciar.config(command=self.executar_simulacao)
-        self.btn_pausar.config(command=self.pausar_simulacao)
-
-    def _set_estado_inicial_botoes(self):
-        self.btn_iniciar.config(
+        self.btn_iniciar = tk.Button(
+            btn_wrap,
             text="Iniciar Simulacao",
             bg="#10b981",
-            command=self.executar_simulacao
+            fg="#ffffff",
+            font=("Inter", 10, "bold"),
+            relief="flat",
+            cursor="hand2",
+            pady=7,
+            command=self.executar_simulacao,
         )
-        self.btn_pausar.config(
+        self.btn_iniciar.pack(fill="x", pady=(0, 6))
+
+        self.btn_pausar = tk.Button(
+            btn_wrap,
             text="Pausar",
             bg="#ef4444",
-            command=self.pausar_simulacao
+            fg="#ffffff",
+            font=("Inter", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            pady=6,
+            command=self.pausar_simulacao,
         )
+        self.btn_pausar.pack(fill="x")
+
+    def _set_estado_inicial_botoes(self):
+        self.btn_iniciar.config(text="Iniciar Simulacao", bg="#10b981", command=self.executar_simulacao)
+        self.btn_pausar.config(text="Pausar", bg="#ef4444", command=self.pausar_simulacao)
 
     def _set_estado_em_execucao_botoes(self):
-        self.btn_iniciar.config(
-            text="Acabar Simulacao",
-            bg="#10b981",
-            command=self.acabar_simulacao
-        )
+        self.btn_iniciar.config(text="Acabar Simulacao", bg="#10b981", command=self.acabar_simulacao)
 
     def registar_evento(self, msg: str):
         self.text_log.insert(tk.END, f"{msg}\n")
@@ -157,7 +199,7 @@ class InterfaceTaxiGreen:
         ]
         self.gestor_pedidos_visuais.atualizar(pedidos_ativos)
 
-        total_pedidos = metrics['pedidos_servicos'] + metrics['pedidos_rejeitados']
+        total_pedidos = metrics["pedidos_servicos"] + metrics["pedidos_rejeitados"]
         self.metricas_labels["pedidos"].config(text=f"{metrics['pedidos_servicos']}/{total_pedidos}")
         self.metricas_labels["taxa"].config(text=f"{metrics['taxa_sucesso']:.0f}%")
         self.metricas_labels["tempo_resp"].config(text=f"{metrics['tempo_medio_resposta']:.1f}m")
@@ -168,25 +210,13 @@ class InterfaceTaxiGreen:
 
         if self.simulador.gestor_falhas:
             estado = self.simulador.gestor_falhas.obter_estado_estacoes()
-            total_est = estado['estacoes_recarga']['total'] + estado['postos_abastecimento']['total']
-            online_est = estado['estacoes_recarga']['online'] + estado['postos_abastecimento']['online']
+            total_est = estado["estacoes_recarga"]["total"] + estado["postos_abastecimento"]["total"]
+            online_est = estado["estacoes_recarga"]["online"] + estado["postos_abastecimento"]["online"]
             self.metricas_labels["estacoes"].config(text=f"{online_est}/{total_est}")
 
         if "ride_sharing" in self.metricas_labels and self.simulador.gestor_ride_sharing:
             stats = self.simulador.gestor_ride_sharing.obter_estatisticas()
-            self.metricas_labels["ride_sharing"].config(text=str(stats['grupos_criados']))
-
-        estacoes_offline = set()
-        if self.simulador.gestor_falhas:
-            todas = (
-                self.simulador.gestor_falhas.obter_estacoes_recarga() +
-                self.simulador.gestor_falhas.obter_postos_abastecimento()
-            )
-            for est_id in todas:
-                no = self.simulador.gestor.grafo.nos[est_id]
-                if not no.disponivel:
-                    estacoes_offline.add(est_id)
-            self.mapa.desenhar_nos(estacoes_offline)
+            self.metricas_labels["ride_sharing"].config(text=str(stats["grupos_criados"]))
 
         self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos_ativos)
 
@@ -196,7 +226,7 @@ class InterfaceTaxiGreen:
             pass
 
     def executar_simulacao(self):
-        if self.simulador.tempo_atual >= self.config['duracao']:
+        if self.simulador.tempo_atual >= self.config["duracao"]:
             self.reiniciar_simulacao()
 
         self.simulacao_ativa = True
@@ -214,14 +244,13 @@ class InterfaceTaxiGreen:
         self._set_estado_inicial_botoes()
 
     def executar_passo(self):
-        if not self.simulacao_ativa or self.simulador.tempo_atual > self.config['duracao']:
-            if self.simulador.tempo_atual > self.config['duracao']:
+        if not self.simulacao_ativa or self.simulador.tempo_atual > self.config["duracao"]:
+            if self.simulador.tempo_atual > self.config["duracao"]:
                 self.finalizar_simulacao()
             return
 
-        passos = self.velocidade
-        for _ in range(passos):
-            if self.simulador.tempo_atual > self.config['duracao']:
+        for _ in range(self.velocidade):
+            if self.simulador.tempo_atual > self.config["duracao"]:
                 break
             self.executar_passo_individual()
 
@@ -240,7 +269,7 @@ class InterfaceTaxiGreen:
         self.simulador.verificar_conclusao_pedidos()
         self.simulador.verificar_recargas()
 
-        if self.simulador.tempo_atual % 5 == 0 and self.config.get('reposicionamento', False):
+        if self.simulador.tempo_atual % 5 == 0 and self.config.get("reposicionamento", False):
             pedidos_futuros = [p for _, _, _, p in self.simulador.fila_pedidos]
             self.simulador.gestor.reposicionar_veiculos(self.simulador.tempo_atual, pedidos_futuros)
 
@@ -266,7 +295,6 @@ class InterfaceTaxiGreen:
         self._set_estado_inicial_botoes()
 
         metricas = self.simulador.gestor.metricas.calcular_metricas()
-
         self.registar_evento("\n" + "=" * 40)
         self.registar_evento(" SIMULACAO CONCLUIDA")
         self.registar_evento("=" * 40)

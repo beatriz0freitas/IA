@@ -1,6 +1,5 @@
 """
 Componentes UI - TaxiGreen
-Interface limpa, compacta e completamente visível.
 """
 
 import tkinter as tk
@@ -16,7 +15,6 @@ class ComponentesUI:
         self.config = config
 
     def criar_header(self, container) -> dict:
-        """Header compacto com informações essenciais."""
         frame = tk.Frame(container, bg="#ffffff")
         frame.pack(fill="x", padx=12, pady=8)
 
@@ -56,13 +54,13 @@ class ComponentesUI:
         self._separador(container, 8)
 
         return {
-            'label_tempo': label_tempo,
-            'label_hora': label_hora,
-            'label_transito': label_transito
+            "label_tempo": label_tempo,
+            "label_hora": label_hora,
+            "label_transito": label_transito,
         }
 
     def criar_info_config(self, container, num_pedidos: int) -> None:
-        """Painel com configuração detalhada da simulação."""
+        """Painel com configuração detalhada da simulação (3 colunas)."""
         frame = tk.Frame(container, bg="#f9fafb")
         frame.pack(fill="x", padx=12, pady=(0, 8))
 
@@ -79,15 +77,22 @@ class ComponentesUI:
         grid.pack(fill="x", padx=8, pady=(0, 6))
 
         config_items = [
-            ("Algoritmo:", self.config['algoritmo'].upper(), 0, 0),
-            ("Duracao:", f"{self.config['duracao']} min", 0, 1),
-            ("Estrategia:", self._formatar_estrategia(self.config['estrategia']), 1, 0),
-            ("Velocidade:", f"{self.config.get('velocidade', 1)}x", 1, 1),
-            ("Pedidos:", f"{num_pedidos}", 2, 0),
-            ("Tipo:", self.config['tipo_pedidos'].title(), 2, 1),
+            ("Algoritmo:", self.config["algoritmo"].upper()),
+            ("Estrategia:", self._formatar_estrategia(self.config["estrategia"])),
+            ("Duracao:", f"{self.config['duracao']} min"),
+            ("Velocidade:", f"{self.config.get('velocidade', 1)}x"),
+            ("Pedidos:", f"{num_pedidos}"),
+            ("Tipo:", self.config["tipo_pedidos"].title()),
         ]
 
-        for label, valor, row, col in config_items:
+        cols = 3
+        for c in range(cols):
+            grid.columnconfigure(c, weight=1, uniform="cfgcol")
+
+        for i, (label, valor) in enumerate(config_items):
+            row = i // cols
+            col = i % cols
+
             cell = tk.Frame(grid, bg="#f9fafb")
             cell.grid(row=row, column=col, sticky="w", padx=4, pady=2)
 
@@ -103,17 +108,14 @@ class ComponentesUI:
                 font=("Inter", 7, "bold")
             ).pack(side="left", padx=(3, 0))
 
-        grid.columnconfigure(0, weight=1)
-        grid.columnconfigure(1, weight=1)
-
         features = []
-        if self.config['usar_transito']:
+        if self.config["usar_transito"]:
             features.append("Transito")
-        if self.config['usar_falhas']:
+        if self.config["usar_falhas"]:
             features.append("Falhas")
-        if self.config.get('reposicionamento'):
+        if self.config.get("reposicionamento"):
             features.append("Repos.")
-        if self.config.get('ride_sharing'):
+        if self.config.get("ride_sharing"):
             features.append("R-Share")
 
         if features:
@@ -139,16 +141,15 @@ class ComponentesUI:
 
     def _formatar_estrategia(self, estrategia: str) -> str:
         nomes = {
-            'menor_distancia': 'Menor Dist',
-            'custo_composto': 'Custo Comp',
-            'dead_mileage': 'Dead Mile',
-            'equilibrada': 'Equilibrada',
-            'priorizar_eletricos': 'Prio Eletr'
+            "menor_distancia": "Menor Dist",
+            "custo_composto": "Custo Comp",
+            "dead_mileage": "Dead Mile",
+            "equilibrada": "Equilibrada",
+            "priorizar_eletricos": "Prio Eletr",
         }
         return nomes.get(estrategia, estrategia)
 
     def criar_frota_compacta(self, container) -> dict:
-        """Estado da frota em formato compacto."""
         frame = tk.Frame(container, bg="#ffffff")
         frame.pack(fill="x", padx=12, pady=(0, 8))
 
@@ -163,15 +164,18 @@ class ComponentesUI:
 
         cards = {}
         items = [
-            ("disponiveis", "Disponiveis", "0/4", "#10b981", 0, 0),
-            ("servico", "Em Servico", "0", "#3b82f6", 0, 1),
-            ("recarga", "Recarregando", "0", "#f59e0b", 1, 0),
-            ("indisp", "Indisponiveis", "0", "#64748b", 1, 1),
+            ("disponiveis", "Disp", "0/4", "#10b981"),
+            ("servico", "Serv", "0", "#3b82f6"),
+            ("recarga", "Rec", "0", "#f59e0b"),
+            ("indisp", "Ind", "0", "#64748b"),
         ]
 
-        for key, titulo, valor, cor, row, col in items:
-            card = tk.Frame(grid, bg="#f9fafb", relief="flat", height=45)
-            card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        for c in range(4):
+            grid.columnconfigure(c, weight=1, uniform="frota_col")
+
+        for i, (key, titulo, valor, cor) in enumerate(items):
+            card = tk.Frame(grid, bg="#f9fafb", relief="flat", height=44)
+            card.grid(row=0, column=i, padx=2, pady=2, sticky="nsew")
             card.grid_propagate(False)
 
             tk.Frame(card, bg=cor, height=2).pack(fill="x")
@@ -179,28 +183,22 @@ class ComponentesUI:
             tk.Label(
                 card, text=titulo,
                 bg="#f9fafb", fg="#6b7280",
-                font=("Inter", 7)
+                font=("Inter", 6)
             ).pack(pady=(3, 0))
 
             label = tk.Label(
                 card, text=valor,
                 bg="#f9fafb", fg=cor,
-                font=("Inter", 11, "bold")
+                font=("Inter", 10, "bold")
             )
             label.pack()
 
             cards[key] = label
 
-        grid.columnconfigure(0, weight=1, uniform="col")
-        grid.columnconfigure(1, weight=1, uniform="col")
-
         self._separador(container, 8)
-
         return cards
 
-    # PEDIDOS ATIVOS - 3 COLUNAS
     def criar_pedidos_lista(self, container) -> dict:
-        """Lista de pedidos ativos com scroll (3 colunas antes de precisar scroll)."""
         frame = tk.Frame(container, bg="#ffffff")
         frame.pack(fill="x", padx=12, pady=(0, 8))
 
@@ -221,14 +219,12 @@ class ComponentesUI:
         )
         label_contador.pack(side="right")
 
-        # Altura um pouco maior para ficar proporcional (imagem atual)
-        canvas = tk.Canvas(frame, bg="#f9fafb", highlightthickness=0, height=90)
+        canvas = tk.Canvas(frame, bg="#f9fafb", highlightthickness=0, height=85)
         scrollbar = tk.Scrollbar(frame, orient="vertical", command=canvas.yview)
 
         pedidos_frame = tk.Frame(canvas, bg="#f9fafb")
         pedidos_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
-        # 3 colunas iguais
         for c in range(3):
             pedidos_frame.columnconfigure(c, weight=1, uniform="pedido_col")
 
@@ -239,15 +235,9 @@ class ComponentesUI:
         canvas.pack(side="left", fill="both", expand=True)
 
         self._separador(container, 8)
-
-        return {
-            'label_contador': label_contador,
-            'container': pedidos_frame,
-            'canvas': canvas
-        }
+        return {"label_contador": label_contador, "container": pedidos_frame, "canvas": canvas}
 
     def criar_card_pedido(self, container, pedido) -> tk.Frame:
-        """Cria card compacto (NÃO faz pack: o gestor posiciona via grid)."""
         card = tk.Frame(container, bg="#ffffff", relief="solid", bd=1)
 
         cores_prioridade = {3: "#ef4444", 2: "#f59e0b", 1: "#3b82f6", 0: "#9ca3af"}
@@ -268,8 +258,8 @@ class ComponentesUI:
 
         estado_info = self._get_estado_info(pedido.estado)
         tk.Label(
-            row1, text=estado_info['texto'],
-            bg=estado_info['bg'], fg=estado_info['fg'],
+            row1, text=estado_info["texto"],
+            bg=estado_info["bg"], fg=estado_info["fg"],
             font=("Inter", 6, "bold"),
             padx=4, pady=1
         ).pack(side="right")
@@ -308,15 +298,14 @@ class ComponentesUI:
 
     def _get_estado_info(self, estado):
         info = {
-            EstadoPedido.PENDENTE: {'texto': 'PEND', 'bg': '#fef3c7', 'fg': '#92400e'},
-            EstadoPedido.ATRIBUIDO: {'texto': 'ATRIB', 'bg': '#dbeafe', 'fg': '#1e40af'},
-            EstadoPedido.EM_EXECUCAO: {'texto': 'EXEC', 'bg': '#d1fae5', 'fg': '#065f46'},
-            EstadoPedido.CONCLUIDO: {'texto': 'OK', 'bg': '#e0e7ff', 'fg': '#4338ca'}
+            EstadoPedido.PENDENTE: {"texto": "PEND", "bg": "#fef3c7", "fg": "#92400e"},
+            EstadoPedido.ATRIBUIDO: {"texto": "ATRIB", "bg": "#dbeafe", "fg": "#1e40af"},
+            EstadoPedido.EM_EXECUCAO: {"texto": "EXEC", "bg": "#d1fae5", "fg": "#065f46"},
+            EstadoPedido.CONCLUIDO: {"texto": "OK", "bg": "#e0e7ff", "fg": "#4338ca"},
         }
-        return info.get(estado, {'texto': '?', 'bg': '#f3f4f6', 'fg': '#6b7280'})
+        return info.get(estado, {"texto": "?", "bg": "#f3f4f6", "fg": "#6b7280"})
 
     def criar_metricas_completas(self, container) -> dict:
-        """Métricas em grid 2 colunas, bem organizadas."""
         frame = tk.Frame(container, bg="#ffffff")
         frame.pack(fill="x", padx=12, pady=(0, 8))
 
@@ -330,23 +319,28 @@ class ComponentesUI:
         grid.pack(fill="x")
 
         metricas_labels = {}
-
         metricas = [
-            ("pedidos", "Pedidos", "0/0", "#10b981", 0, 0),
-            ("taxa", "Taxa", "0%", "#3b82f6", 0, 1),
-            ("tempo_resp", "T.Resp", "0m", "#06b6d4", 1, 0),
-            ("km", "Km", "0", "#f59e0b", 1, 1),
-            ("dead_mileage", "Dead", "0%", "#ef4444", 2, 0),
-            ("custo", "Custo", "€0", "#8b5cf6", 2, 1),
-            ("emissoes", "CO2", "0kg", "#64748b", 3, 0),
-            ("estacoes", "Estac", "0/0", "#22c55e", 3, 1),
+            ("pedidos", "Ped", "0/0", "#10b981"),
+            ("taxa", "Taxa", "0%", "#3b82f6"),
+            ("tempo_resp", "T.Resp", "0m", "#06b6d4"),
+            ("km", "Km", "0", "#f59e0b"),
+            ("dead_mileage", "Dead", "0%", "#ef4444"),
+            ("custo", "€", "€0", "#8b5cf6"),
+            ("emissoes", "CO2", "0kg", "#64748b"),
+            ("estacoes", "Est", "0/0", "#22c55e"),
         ]
+        if self.config.get("ride_sharing", False):
+            metricas.append(("ride_sharing", "R-Shr", "0", "#ec4899"))
 
-        if self.config.get('ride_sharing', False):
-            metricas.append(("ride_sharing", "R-Shr", "0", "#ec4899", 4, 0))
+        cols = 4
+        for c in range(cols):
+            grid.columnconfigure(c, weight=1, uniform="mcol")
 
-        for key, titulo, valor, cor, row, col in metricas:
-            card = tk.Frame(grid, bg="#f9fafb", relief="flat", height=42)
+        for i, (key, titulo, valor, cor) in enumerate(metricas):
+            row = i // cols
+            col = i % cols
+
+            card = tk.Frame(grid, bg="#f9fafb", relief="flat", height=34)
             card.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
             card.grid_propagate(False)
 
@@ -355,27 +349,22 @@ class ComponentesUI:
             tk.Label(
                 card, text=titulo,
                 bg="#f9fafb", fg="#6b7280",
-                font=("Inter", 7)
+                font=("Inter", 6)
             ).pack(pady=(2, 0))
 
             label = tk.Label(
                 card, text=valor,
                 bg="#f9fafb", fg=cor,
-                font=("Inter", 10, "bold")
+                font=("Inter", 8, "bold")
             )
             label.pack()
 
             metricas_labels[key] = label
 
-        grid.columnconfigure(0, weight=1, uniform="col")
-        grid.columnconfigure(1, weight=1, uniform="col")
-
         self._separador(container, 8)
-
         return metricas_labels
 
     def criar_log(self, container) -> tk.Text:
-        """Log de eventos compacto (ligeiramente mais baixo para dar espaço aos pedidos)."""
         frame = tk.Frame(container, bg="#ffffff")
         frame.pack(fill="both", expand=True, padx=12, pady=(0, 8))
 
@@ -391,10 +380,9 @@ class ComponentesUI:
         scrollbar = tk.Scrollbar(log_frame)
         scrollbar.pack(side="right", fill="y")
 
-        # Menos linhas, porque agora "Pedidos" ocupa mais altura
         text_log = tk.Text(
             log_frame,
-            height=4,
+            height=3,
             wrap="word",
             yscrollcommand=scrollbar.set,
             font=("Consolas", 7),
@@ -410,46 +398,17 @@ class ComponentesUI:
 
         return text_log
 
-    def criar_botoes(self, container) -> dict:
-        """Botões de controlo."""
-        self._separador(container, 8)
-
-        frame = tk.Frame(container, bg="#ffffff")
-        frame.pack(fill="x", padx=12, pady=(0, 8))
-
-        btn_iniciar = tk.Button(
-            frame, text="Iniciar Simulacao",
-            bg="#10b981", fg="#ffffff",
-            font=("Inter", 9, "bold"),
-            relief="flat", cursor="hand2",
-            pady=8
-        )
-        btn_iniciar.pack(fill="x", pady=(0, 3))
-
-        btn_pausar = tk.Button(
-            frame, text="Pausar",
-            bg="#ef4444", fg="#ffffff",
-            font=("Inter", 8, "bold"),
-            relief="flat", cursor="hand2",
-            pady=6
-        )
-        btn_pausar.pack(fill="x")
-
-        return {'btn_iniciar': btn_iniciar, 'btn_pausar': btn_pausar}
-
     def _separador(self, parent, pady=8):
         tk.Frame(parent, bg="#e5e7eb", height=1).pack(fill="x", padx=12, pady=pady)
 
 
 class GestorPedidosVisuais:
-    """Gere visualização de pedidos (agora em 3 colunas com grid)."""
-
     def __init__(self, container, canvas, contador, componentes):
         self.container = container
         self.canvas = canvas
         self.contador = contador
         self.componentes = componentes
-        self.cards = {}  # id -> widget
+        self.cards = {}
 
         self.num_colunas = 3
         for c in range(self.num_colunas):
@@ -465,10 +424,8 @@ class GestorPedidosVisuais:
 
         for pedido in pedidos:
             if pedido.id_pedido not in self.cards:
-                card = self.componentes.criar_card_pedido(self.container, pedido)
-                self.cards[pedido.id_pedido] = card
+                self.cards[pedido.id_pedido] = self.componentes.criar_card_pedido(self.container, pedido)
 
-        # reposiciona em 3 colunas (lado a lado)
         for i, pedido in enumerate(pedidos):
             card = self.cards.get(pedido.id_pedido)
             if not card:
