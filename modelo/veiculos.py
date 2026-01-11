@@ -94,15 +94,19 @@ class Veiculo(ABC):
         
         prox_no = self.rota[self.indice_rota + 1]
         aresta = grafo.get_aresta(self.posicao, prox_no)
-        
+
         # Determina se está com passageiros
         com_passageiros = (self.estado == EstadoVeiculo.A_SERVICO)
-        
+
         self.move(aresta.distancia_km, prox_no, com_passageiros)
         self.indice_rota += 1
 
+        # Define tempo ocupado até o veículo chegar ao próximo nó
+        tempo_viagem = int(aresta.tempo_real())
+        self.tempo_ocupado_ate = tempo_atual + tempo_viagem
+
         chegou = (self.indice_rota >= len(self.rota) - 1)
-        
+
         return True, chegou
     
     def custo_operacao(self, distancia_km: float) -> float:

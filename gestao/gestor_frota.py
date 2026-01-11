@@ -268,6 +268,11 @@ class GestorFrota:
 
     def atribuir_pedido(self, pedido: Pedido, tempo_atual: int) -> Optional[Veiculo]:
         """Atribui veículo a pedido."""
+        # Não reatribui pedidos já atribuídos
+        if pedido.estado in (EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO, EstadoPedido.CONCLUIDO):
+            #print(f"DEBUG: Pedido {pedido.id_pedido} já está em estado {pedido.estado.name}, não reatribuir")
+            return None
+
         veiculo = self.selecionar_veiculo_pedido(pedido, tempo_atual)
         
         if not veiculo:
