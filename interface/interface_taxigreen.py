@@ -1,14 +1,14 @@
-"""
-Interface TaxiGreen
-"""
 
 import tkinter as tk
+import heapq
+
 from interface.interface_mapa import InterfaceMapa
 from interface.interface_componentes import ComponentesUI, GestorPedidosVisuais
+from interface.interface_controller import InterfaceController
+
 from modelo.pedidos import EstadoPedido
 from modelo.veiculos import EstadoVeiculo
 from gestao.metricas import Metricas
-import heapq
 
 
 class InterfaceTaxiGreen:
@@ -16,7 +16,7 @@ class InterfaceTaxiGreen:
     WINDOW_H = 780
 
     SIDEBAR_W = 450
-    SIDEBAR_FOOTER_H = 92  
+    SIDEBAR_FOOTER_H = 92
 
     PAD_X_OUT = 4
     PAD_Y_OUT = 4
@@ -27,8 +27,11 @@ class InterfaceTaxiGreen:
         self.config = config
 
         self.simulacao_ativa = False
+        self.simulacao_bloqueada = False  # <- NOVO: quando o utilizador "Acaba", não reinicia
         self.velocidade = config.get("velocidade", 1)
         self.intervalo_atualizacao = self.calcular_intervalo(self.velocidade)
+
+        self._a_fechar = False
 
         self.root = tk.Tk()
         self.root.title("TaxiGreen Simulator")
@@ -36,18 +39,41 @@ class InterfaceTaxiGreen:
         self.root.configure(bg="#f3f4f6")
         self.root.resizable(False, False)
 
+        self.root.protocol("WM_DELETE_WINDOW", self.sair_aplicacao)
+
+        self.ui_scheduler = InterfaceController(self.root)
+        self.step_scheduler = InterfaceController(self.root)
+
         self.gestor_pedidos_visuais = None
 
         self.criar_interface()
         self._set_estado_inicial_botoes()
-        self.root.after(self.intervalo_atualizacao, self.atualizar)
+
+        self.ui_scheduler.schedule(self.intervalo_atualizacao, self.atualizar)
 
     def calcular_intervalo(self, velocidade):
         intervalos = {1: 1000, 2: 500, 5: 200, 10: 100}
         return intervalos.get(velocidade, 1000)
 
+    # -------------------- lifecycle --------------------
+
+    def sair_aplicacao(self):
+        if self._a_fechar:
+            return
+        self._a_fechar = True
+
+        self.simulacao_ativa = False
+        self.ui_scheduler.cancel()
+        self.step_scheduler.cancel()
+
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
+
+    # -------------------- UI build --------------------
+
     def criar_interface(self):
-        # Root: 1 linha, 2 colunas
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_columnconfigure(1, weight=0)
@@ -88,7 +114,6 @@ class InterfaceTaxiGreen:
             height=max(520, mapa_h),
         )
 
-        # Sidebar content
         componentes = ComponentesUI(sidebar_content, self.config)
 
         widgets_header = componentes.criar_header(sidebar_content)
@@ -115,7 +140,7 @@ class InterfaceTaxiGreen:
         self.metricas_labels = componentes.criar_metricas_completas(sidebar_content)
         self.text_log = componentes.criar_log(sidebar_content)
 
-        # Botões (footer da sidebar)
+        # Botões
         btn_wrap = tk.Frame(sidebar_footer, bg="#ffffff")
         btn_wrap.pack(fill="both", expand=True, padx=10, pady=8)
 
@@ -145,14 +170,27 @@ class InterfaceTaxiGreen:
         )
         self.btn_pausar.pack(fill="x")
 
+    # -------------------- button states --------------------
+
     def _set_estado_inicial_botoes(self):
-        self.btn_iniciar.config(text="Iniciar Simulacao", bg="#10b981", command=self.executar_simulacao)
-        self.btn_pausar.config(text="Pausar", bg="#ef4444", command=self.pausar_simulacao)
+        # Só faz sentido se não estiver bloqueada
+        self.btn_iniciar.config(text="Iniciar Simulacao", bg="#10b981", command=self.executar_simulacao, state="normal")
+        self.btn_pausar.config(text="Pausar", bg="#ef4444", command=self.pausar_simulacao, state="normal")
 
     def _set_estado_em_execucao_botoes(self):
-        self.btn_iniciar.config(text="Acabar Simulacao", bg="#10b981", command=self.acabar_simulacao)
+        # "Iniciar" vira "Acabar"
+        self.btn_iniciar.config(text="Acabar Simulacao", bg="#10b981", command=self.acabar_simulacao, state="normal")
+
+    def _set_estado_bloqueado_botoes(self):
+        # após "Acabar", desativa iniciar e pausa
+        self.btn_iniciar.config(text="Simulacao Terminada", bg="#9ca3af", state="disabled")
+        self.btn_pausar.config(text="Pausar", bg="#9ca3af", state="disabled")
+
+    # -------------------- log --------------------
 
     def registar_evento(self, msg: str):
+        if self._a_fechar:
+            return
         self.text_log.insert(tk.END, f"{msg}\n")
         self.text_log.see(tk.END)
         try:
@@ -160,7 +198,12 @@ class InterfaceTaxiGreen:
         except tk.TclError:
             pass
 
+    # -------------------- UI loop --------------------
+
     def atualizar(self):
+        if self._a_fechar:
+            return
+
         m = self.simulador.gestor.metricas
         metrics = m.calcular_metricas()
 
@@ -180,7 +223,7 @@ class InterfaceTaxiGreen:
             else:
                 self.label_transito.config(text="Transito: Normal", fg="#6b7280")
 
-        veiculos = self.simulador.gestor.veiculos.values()
+        veiculos = list(self.simulador.gestor.veiculos.values())
         total = len(veiculos)
 
         disponiveis = sum(1 for v in veiculos if v.estado == EstadoVeiculo.DISPONIVEL)
@@ -220,41 +263,69 @@ class InterfaceTaxiGreen:
 
         self.mapa.atualizar(self.simulador.gestor.veiculos, pedidos_ativos)
 
-        try:
-            self.root.after(self.intervalo_atualizacao, self.atualizar)
-        except tk.TclError:
-            pass
+        self.ui_scheduler.schedule(self.intervalo_atualizacao, self.atualizar)
+
+    # -------------------- simulation controls --------------------
 
     def executar_simulacao(self):
+        if self._a_fechar:
+            return
+
+        # bloqueio definitivo após "Acabar"
+        if self.simulacao_bloqueada:
+            self.registar_evento("A simulação foi terminada pelo utilizador e está bloqueada. Reinicie a aplicação para iniciar novamente.")
+            return
+
         if self.simulador.tempo_atual >= self.config["duracao"]:
             self.reiniciar_simulacao()
 
         self.simulacao_ativa = True
         self._set_estado_em_execucao_botoes()
-        self.btn_pausar.config(text="Pausar", bg="#ef4444")
+        self.btn_pausar.config(text="Pausar", bg="#ef4444", state="normal")
 
         self.registar_evento(f"Simulacao iniciada ({self.velocidade}x)")
         self.executar_passo()
 
     def acabar_simulacao(self):
-        if not self.simulacao_ativa:
+        """Termina a simulação definitivamente (não permite reiniciar)."""
+        if self._a_fechar:
             return
+        if not self.simulacao_ativa and not self.step_scheduler.active:
+            # já parada
+            return
+
         self.simulacao_ativa = False
-        self.registar_evento("SIMULACAO TERMINADA PELO UTILIZADOR")
-        self._set_estado_inicial_botoes()
+        self.step_scheduler.cancel()
+
+        self.simulacao_bloqueada = True
+        self.registar_evento("SIMULACAO TERMINADA PELO UTILIZADOR (BLOQUEADA)")
+
+        # Mostra métricas recolhidas até ao momento (extensas)
+        m = self.simulador.gestor.metricas
+        metricas = m.calcular_metricas_extensas(self.simulador.gestor.veiculos)
+        self.mostrar_popup_resultados(metricas)
+
+        # Bloqueia UI de controlo
+        self._set_estado_bloqueado_botoes()
 
     def executar_passo(self):
+        if self._a_fechar:
+            return
+
         if not self.simulacao_ativa or self.simulador.tempo_atual > self.config["duracao"]:
             if self.simulador.tempo_atual > self.config["duracao"]:
                 self.finalizar_simulacao()
             return
 
         for _ in range(self.velocidade):
-            if self.simulador.tempo_atual > self.config["duracao"]:
+            if not self.simulacao_ativa or self.simulador.tempo_atual > self.config["duracao"]:
                 break
             self.executar_passo_individual()
 
     def executar_passo_individual(self):
+        if self._a_fechar or not self.simulacao_ativa:
+            return
+
         if self.simulador.gestor_transito:
             self.simulador.gestor_transito.atualizar_transito(self.simulador.tempo_atual)
 
@@ -274,14 +345,17 @@ class InterfaceTaxiGreen:
             self.simulador.gestor.reposicionar_veiculos(self.simulador.tempo_atual, pedidos_futuros)
 
         self.simulador.tempo_atual += 1
-        self.root.after(self.intervalo_atualizacao, self.executar_passo)
+        self.step_scheduler.schedule(self.intervalo_atualizacao, self.executar_passo)
 
     def pausar_simulacao(self):
-        if not self.simulacao_ativa:
+        if self._a_fechar:
             return
+        if self.simulacao_bloqueada:
+            return  # já acabou definitivamente
 
-        if self.btn_pausar.cget("text") == "Pausar":
+        if self.simulacao_ativa:
             self.simulacao_ativa = False
+            self.step_scheduler.cancel()
             self.btn_pausar.config(text="Retomar", bg="#10b981")
             self.registar_evento("PAUSADA")
         else:
@@ -290,11 +364,23 @@ class InterfaceTaxiGreen:
             self.registar_evento("RETOMADA")
             self.executar_passo()
 
+    # -------------------- final results popup --------------------
+
     def finalizar_simulacao(self):
+        """Fim normal (chegou ao tempo máximo)."""
+        if self._a_fechar:
+            return
+
         self.simulacao_ativa = False
+        self.step_scheduler.cancel()
+
+        self.simulacao_bloqueada = True
+        self._set_estado_bloqueado_botoes()
         self._set_estado_inicial_botoes()
 
-        metricas = self.simulador.gestor.metricas.calcular_metricas()
+        m = self.simulador.gestor.metricas
+        metricas = m.calcular_metricas_extensas(self.simulador.gestor.veiculos)
+
         self.registar_evento("\n" + "=" * 40)
         self.registar_evento(" SIMULACAO CONCLUIDA")
         self.registar_evento("=" * 40)
@@ -306,37 +392,60 @@ class InterfaceTaxiGreen:
 
     def mostrar_popup_resultados(self, metricas):
         popup = tk.Toplevel(self.root)
-        popup.title("Simulacao Concluida")
-        popup.geometry("480x550")
+        popup.title("Simulacao")
+        popup.geometry("520x640")
         popup.configure(bg="#ffffff")
         popup.transient(self.root)
         popup.resizable(False, False)
 
-        tk.Frame(popup, bg="#10b981", height=60).pack(fill="x")
+        tk.Frame(popup, bg="#10b981", height=64).pack(fill="x")
         tk.Label(
-            popup, text="Simulacao Concluida",
+            popup, text="Resultados da Simulação",
             bg="#10b981", fg="#ffffff",
-            font=("Inter", 15, "bold")
-        ).place(x=240, y=20, anchor="center")
+            font=("Inter", 16, "bold")
+        ).place(x=260, y=22, anchor="center")
 
         content = tk.Frame(popup, bg="#ffffff")
-        content.pack(fill="both", expand=True, padx=20, pady=15)
+        content.pack(fill="both", expand=True, padx=20, pady=16)
 
-        resultados = [
-            ("Pedidos Atendidos", f"{metricas['pedidos_servicos']}/{metricas['pedidos_servicos'] + metricas['pedidos_rejeitados']}"),
-            ("Taxa de Sucesso", f"{metricas['taxa_sucesso']:.1f}%"),
-            ("Tempo Medio", f"{metricas['tempo_medio_resposta']:.1f} min"),
-            ("Custo Total", f"€{metricas['custo_total']:.2f}"),
-            ("Emissoes CO2", f"{metricas['emissoes_totais']:.1f} kg"),
-            ("Km Totais", f"{metricas['km_totais']:.1f} km"),
-            ("Dead Mileage", f"{metricas['perc_km_vazio']:.1f}%"),
-        ]
+        def section(title: str):
+            tk.Label(content, text=title, bg="#ffffff", fg="#111827",
+                     font=("Inter", 11, "bold")).pack(anchor="w", pady=(10, 6))
 
-        for label, valor in resultados:
-            row = tk.Frame(content, bg="#ffffff")
-            row.pack(fill="x", pady=3)
-            tk.Label(row, text=label + ":", bg="#ffffff", fg="#6b7280", font=("Inter", 9)).pack(side="left")
-            tk.Label(row, text=valor, bg="#ffffff", fg="#111827", font=("Inter", 9, "bold")).pack(side="right")
+        def row(label: str, value: str):
+            r = tk.Frame(content, bg="#ffffff")
+            r.pack(fill="x", pady=2)
+            tk.Label(r, text=label, bg="#ffffff", fg="#6b7280", font=("Inter", 9)).pack(side="left")
+            tk.Label(r, text=value, bg="#ffffff", fg="#111827", font=("Inter", 9, "bold")).pack(side="right")
+
+        total_pedidos = metricas["pedidos_servicos"] + metricas["pedidos_rejeitados"]
+
+        section("Resumo")
+        row("Pedidos atendidos", f"{metricas['pedidos_servicos']}/{total_pedidos}")
+        row("Taxa de sucesso", f"{metricas['taxa_sucesso']:.1f}%")
+        row("Tempo médio de resposta", f"{metricas['tempo_medio_resposta']:.1f} min")
+
+        section("Eficiência Operacional")
+        row("Km totais", f"{metricas['km_totais']:.1f} km")
+        row("Dead mileage", f"{metricas['perc_km_vazio']:.1f}%")
+        row("Custo total", f"€{metricas['custo_total']:.2f}")
+        row("Custo por km", f"€{metricas.get('custo_por_km', 0.0):.3f}/km")
+        row("Custo por pedido servido", f"€{metricas.get('custo_por_pedido_servico', 0.0):.2f}")
+
+        section("Impacto Ambiental")
+        row("Emissões CO₂", f"{metricas['emissoes_totais']:.2f} kg")
+        row("Emissões por km", f"{metricas.get('emissao_por_km', 0.0):.4f} kg/km")
+
+        dead = metricas.get("dead_detail", {})
+        top_dead = dead.get("top_dead_mileage", [])
+        top_km = dead.get("top_km", [])
+
+        if top_dead or top_km:
+            section("Rankings (Top 3)")
+            if top_dead:
+                row("Mais km vazio", ", ".join([f"{vid}({km:.1f})" for vid, km in top_dead]))
+            if top_km:
+                row("Mais km totais", ", ".join([f"{vid}({km:.1f})" for vid, km in top_km]))
 
         tk.Button(
             popup, text="Fechar",
@@ -345,9 +454,16 @@ class InterfaceTaxiGreen:
             font=("Inter", 9, "bold"),
             relief="flat", padx=30, pady=8,
             cursor="hand2"
-        ).pack(pady=15)
+        ).pack(pady=14)
+
+    # -------------------- reset --------------------
 
     def reiniciar_simulacao(self):
+        # Se bloqueaste por "Acabar", não reinicia
+        if self.simulacao_bloqueada:
+            self.registar_evento("A simulação está bloqueada e não pode ser reiniciada nesta sessão.")
+            return
+
         self.simulador.tempo_atual = 0
         self.simulador.gestor.pedidos_pendentes = []
         self.simulador.gestor.pedidos_concluidos = []
@@ -365,6 +481,11 @@ class InterfaceTaxiGreen:
             v.estado = EstadoVeiculo.DISPONIVEL
             v.rota = []
             v.indice_rota = 0
+            v.id_pedido_atual = None
+            v.km_total = 0
+            v.km_sem_passageiros = 0
+            v.tempo_ocupado_ate = 0
+            v.autonomia_km = v.autonomiaMax_km
 
         self.simulador.gestor.metricas = Metricas()
         self.gestor_pedidos_visuais.limpar()

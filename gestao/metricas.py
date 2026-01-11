@@ -74,38 +74,40 @@ class Metricas:
             v.id_veiculo: round(v.km_sem_passageiros, 2)
             for v in veiculos.values()
         }
+        km_por_veiculo = {v.id_veiculo: round(v.km_total, 2) for v in veiculos.values()}
+
+        top_dead = sorted(dead_por_veiculo.items(), key=lambda kv: kv[1], reverse=True)
+        top_km = sorted(km_por_veiculo.items(), key=lambda kv: kv[1], reverse=True)
 
         return {
             "km_total": round(km_total, 2),
             "km_sem_passageiros": round(km_sem_pass, 2),
             "perc_dead_mileage": round(perc, 2),
             "dead_mileage_por_veiculo": dead_por_veiculo,
+            "km_por_veiculo": km_por_veiculo,
+            "top_dead_mileage": top_dead[:3],
+            "top_km": top_km[:3],
         }
 
     def calcular_metricas_extensas(self, veiculos: Dict[str, Veiculo]) -> Dict[str, object]:
         base = self.calcular_metricas()
         dead = Metricas.calcular_metricas_dead_mileage(veiculos)
-
+    
         pedidos_servicos = base.get("pedidos_servicos", 0) or 0
-        km_totais = base.get("km_totais", 0.0) or 0.0
-        custo_total = base.get("custo_total", 0.0) or 0.0
-        emissoes = base.get("emissoes_totais", 0.0) or 0.0
-
+        km_totais = float(base.get("km_totais", 0.0) or 0.0)
+        custo_total = float(base.get("custo_total", 0.0) or 0.0)
+        emissoes = float(base.get("emissoes_totais", 0.0) or 0.0)
+    
         custo_por_km = round(custo_total / km_totais, 3) if km_totais > 0 else 0.0
         emissao_por_km = round(emissoes / km_totais, 4) if km_totais > 0 else 0.0
         custo_por_pedido = round(custo_total / pedidos_servicos, 2) if pedidos_servicos > 0 else 0.0
-
-        # Top veículo “dead mileage”
-        dead_por_veiculo = dead["dead_mileage_por_veiculo"]
-        top_dead = max(dead_por_veiculo.items(), key=lambda kv: kv[1]) if dead_por_veiculo else None
-
+    
         return {
             **base,
             "custo_por_km": custo_por_km,
             "emissao_por_km": emissao_por_km,
             "custo_por_pedido_servico": custo_por_pedido,
-            "dead_mileage": dead,
-            "top_dead_mileage": top_dead,  # ("E1", 12.3)
+            "dead_detail": dead,
         }
 
     @staticmethod
