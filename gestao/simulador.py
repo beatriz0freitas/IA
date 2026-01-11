@@ -188,6 +188,7 @@ class Simulador:
                     veiculo.rota = rota
                     veiculo.indice_rota = 0
                     veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+                    veiculo.id_pedido_atual = pedidos_agrupados[0].id_pedido
 
                     # Marca pedidos como atribuídos
                     for pedido in pedidos_agrupados:

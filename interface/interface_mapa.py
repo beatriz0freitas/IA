@@ -5,8 +5,8 @@ NODE_RADIUS = 10
 VEHICLE_SIZE = 8
 SCALE = 40
 
+# Rasto / rota percorrida
 TRAIL_WIDTH = 6
-TRAIL_MAX_NODES = 400  # limite por pedido
 
 
 class InterfaceMapa(tk.Canvas):
@@ -25,27 +25,30 @@ class InterfaceMapa(tk.Canvas):
         self.grafo_desenhado = False
         self.tooltip = None
 
+        # Paleta para cores por pedido (evita crash no obter_cor_pedido)
         self.paleta_cores = [
             "#8b5cf6", "#22c55e", "#06b6d4", "#f97316", "#ef4444",
             "#a855f7", "#eab308", "#14b8a6", "#3b82f6", "#ec4899",
         ]
         self.proximo_indice_cor = 0
 
+        # ---- NOVO: linhas de rasto por (veículo,pedido) e pid anterior por veículo ----
+        self.trail_lines = {}          # (vid, pid) -> line_id
+        self.last_pid_by_vehicle = {}  # vid -> last_pid
+
         self.calcular_escala_e_offset()
+
         self.desenhar_grafo_estatico()
         self.draw_legend()
 
+        # Eventos de hover
         self.bind("<Motion>", self.on_mouse_move)
         self.bind("<Leave>", self.on_mouse_leave)
 
-        self.vehicle_items = {}     
-        self.vehicle_pixel = {}     
-        self.anim_job = {}          
-        self.dest_lines = {}         
-
-        self.trail_nodes = {}
-        self.trail_lines = {}
-        self.last_pid_by_vehicle = {}
+        self.vehicle_items = {}      # id_veiculo -> (shadow_id, rect_id, label_id)
+        self.vehicle_pixel = {}      # id_veiculo -> (x, y) posição atual em pixels
+        self.anim_job = {}           # id_veiculo -> after_id (para cancelar animações)
+        self.dest_lines = {}         # id_veiculo -> line_id (linha até destino)
 
     def calcular_escala_e_offset(self):
         if not self.grafo.nos:
@@ -80,6 +83,7 @@ class InterfaceMapa(tk.Canvas):
         self.offset_x = self.width // 2 - (centro_grafo_x * self.scale)
         self.offset_y = self.height // 2 - (centro_grafo_y * self.scale)
 
+    # Converte coordenadas do grafo para pixels
     def _pos(self, id_no):
         if id_no in self.pos_cache:
             return self.pos_cache[id_no]
@@ -93,6 +97,7 @@ class InterfaceMapa(tk.Canvas):
     def desenhar_grafo_estatico(self):
         if self.grafo_desenhado:
             return
+
         self.desenhar_arestas()
         self.desenhar_nos()
         self.grafo_desenhado = True
@@ -104,7 +109,11 @@ class InterfaceMapa(tk.Canvas):
             for a in arestas:
                 if origem < a.no_destino:
                     x2, y2 = self._pos(a.no_destino)
-                    self.create_line(x1, y1, x2, y2, fill="#d1d5db", width=2, tags="arestas")
+                    self.create_line(
+                        x1, y1, x2, y2,
+                        fill="#d1d5db", width=2,
+                        tags="arestas"
+                    )
 
     def desenhar_nos(self, estacoes_offline=None):
         self.delete("nos")
@@ -113,8 +122,11 @@ class InterfaceMapa(tk.Canvas):
 
         for no in self.grafo.nos.values():
             x, y = self._pos(no.id_no)
+
+            # Verifica se está offline
             is_offline = no.id_no in estacoes_offline
 
+            # Cores limpas e distintas
             if no.tipo == TipoNo.RECOLHA_PASSAGEIROS:
                 cor = "#10b981"
                 borda = "#059669"
@@ -136,6 +148,7 @@ class InterfaceMapa(tk.Canvas):
                 cor = "#6b7280"
                 borda = "#4b5563"
 
+            # Nó principal
             self.create_oval(
                 x - NODE_RADIUS, y - NODE_RADIUS,
                 x + NODE_RADIUS, y + NODE_RADIUS,
@@ -143,10 +156,14 @@ class InterfaceMapa(tk.Canvas):
                 tags=("nos", f"no_{no.id_no}")
             )
 
+            # Marca X se offline
             if is_offline:
-                self.create_line(x - 4, y - 4, x + 4, y + 4, fill="#ffffff", width=2, tags="nos")
-                self.create_line(x - 4, y + 4, x + 4, y - 4, fill="#ffffff", width=2, tags="nos")
+                self.create_line(x - 4, y - 4, x + 4, y + 4,
+                                 fill="#ffffff", width=2, tags="nos")
+                self.create_line(x - 4, y + 4, x + 4, y - 4,
+                                 fill="#ffffff", width=2, tags="nos")
 
+            # Label
             self.create_text(
                 x, y - NODE_RADIUS - 12,
                 text=no.id_no.replace("_", " "),
@@ -159,13 +176,22 @@ class InterfaceMapa(tk.Canvas):
         self.delete("legenda")
 
         x, y = 20, 20
-        self.create_rectangle(x - 10, y - 10, x + 220, y + 175,
-                              fill="#ffffff", outline="#e5e7eb", width=2, tags="legenda")
+        self.create_rectangle(
+            x - 10, y - 10, x + 220, y + 175,
+            fill="#ffffff", outline="#e5e7eb", width=2,
+            tags="legenda"
+        )
 
-        self.create_text(x + 105, y + 5, text="Legenda",
-                         font=("Inter", 11, "bold"), fill="#111827", tags="legenda")
+        self.create_text(
+            x + 105, y + 5,
+            text="Legenda",
+            font=("Inter", 11, "bold"),
+            fill="#111827",
+            tags="legenda"
+        )
 
-        self.create_line(x, y + 20, x + 210, y + 20, fill="#e5e7eb", width=1, tags="legenda")
+        self.create_line(x, y + 20, x + 210, y + 20,
+                         fill="#e5e7eb", width=1, tags="legenda")
 
         items = [
             ("Zona de recolha", "#10b981", "circle"),
@@ -182,17 +208,25 @@ class InterfaceMapa(tk.Canvas):
             yy = y + 35 + i * spacing
 
             if shape == "circle":
-                self.create_oval(x + 5, yy - 6, x + 17, yy + 6, fill=color, outline="", tags="legenda")
+                self.create_oval(x + 5, yy - 6, x + 17, yy + 6,
+                                 fill=color, outline="", tags="legenda")
             elif shape == "square":
-                self.create_rectangle(x + 5, yy - 6, x + 17, yy + 6, fill=color, outline="", tags="legenda")
+                self.create_rectangle(x + 5, yy - 6, x + 17, yy + 6,
+                                      fill=color, outline="", tags="legenda")
             elif shape == "diamond":
                 self.create_polygon(x + 11, yy - 7, x + 18, yy, x + 11, yy + 7, x + 4, yy,
                                     fill=color, outline="", tags="legenda")
             elif shape == "line":
-                self.create_line(x + 5, yy, x + 17, yy, fill=color, width=4, tags="legenda")
+                self.create_line(x + 5, yy, x + 17, yy,
+                                 fill=color, width=4, tags="legenda")
 
-            self.create_text(x + 28, yy, text=label, anchor="w",
-                             font=("Inter", 9), fill="#4b5563", tags="legenda")
+            self.create_text(
+                x + 28, yy,
+                text=label, anchor="w",
+                font=("Inter", 9),
+                fill="#4b5563",
+                tags="legenda"
+            )
 
     def obter_cor_pedido(self, pedido_id):
         if pedido_id not in self.cores_pedidos:
@@ -200,7 +234,7 @@ class InterfaceMapa(tk.Canvas):
             self.proximo_indice_cor += 1
         return self.cores_pedidos[pedido_id]
 
-    # ------------------ TRAIL (NÓS) ------------------
+    # ---------------- RASTO (seguir exatamente rota+indice_rota) ----------------
 
     def _trail_key(self, vid: str, pid: str):
         return (vid, pid)
@@ -209,23 +243,19 @@ class InterfaceMapa(tk.Canvas):
         line_id = self.trail_lines.pop(key, None)
         if line_id:
             self.delete(line_id)
-        self.trail_nodes.pop(key, None)
 
-    def _append_trail_node(self, key, node_id: str):
-        nodes = self.trail_nodes.setdefault(key, [])
-        if nodes and nodes[-1] == node_id:
-            return
-        nodes.append(node_id)
-        if len(nodes) > TRAIL_MAX_NODES:
-            del nodes[: len(nodes) - TRAIL_MAX_NODES]
+    def _clear_all_trails_for_vehicle(self, vid: str):
+        keys = [k for k in list(self.trail_lines.keys()) if k[0] == vid]
+        for k in keys:
+            self._clear_trail(k)
+        self.last_pid_by_vehicle.pop(vid, None)
 
-    def _render_trail(self, key, color: str):
-        nodes = self.trail_nodes.get(key)
-        if not nodes or len(nodes) < 2:
+    def _render_trail_from_nodes(self, key, node_ids, color: str):
+        if not node_ids or len(node_ids) < 2:
             return
 
         flat = []
-        for nid in nodes:
+        for nid in node_ids:
             x, y = self._pos(nid)
             flat.extend([x, y])
 
@@ -236,14 +266,20 @@ class InterfaceMapa(tk.Canvas):
                 width=TRAIL_WIDTH,
                 capstyle=tk.ROUND,
                 joinstyle=tk.ROUND,
+                smooth=False,
                 tags=("trails", f"trail_{key[0]}_{key[1]}")
             )
             self.trail_lines[key] = line_id
 
+            self.tag_lower(line_id)
             self.tag_raise(line_id, "arestas")
-            self.tag_lower(line_id, "destinos")
+            try:
+                self.tag_lower(line_id, "veiculos")
+            except tk.TclError:
+                pass
         else:
             self.coords(self.trail_lines[key], *flat)
+    # --------------------------------------------------------------------------
 
     def desenhar_pedido(self, pedido):
         pid = pedido.id_pedido
@@ -253,23 +289,26 @@ class InterfaceMapa(tk.Canvas):
 
         x, y = self._pos(pedido.posicao_inicial)
 
-        self.create_oval(x - 12, y - 12, x + 12, y + 12,
-                         fill="", outline="#c4b5fd", width=2,
-                         tags=("pedidos", f"pedido_{pid}"))
+        # Halo pulsante
+        self.create_oval(
+            x - 12, y - 12, x + 12, y + 12,
+            fill="", outline="#c4b5fd", width=2,
+            tags=("pedidos", f"pedido_{pid}")
+        )
 
+        # Diamante
         marker = self.create_polygon(
-            x, y - 8,
-            x + 8, y,
-            x, y + 8,
-            x - 8, y,
+            x, y - 8, x + 8, y, x, y + 8, x - 8, y,
             fill="#8b5cf6", outline="#7c3aed", width=2,
             tags=("pedidos", f"pedido_{pid}")
         )
 
-        label = self.create_text(x, y - 20, text=pid,
-                                 font=("Inter", 8, "bold"),
-                                 fill="#6d28d9",
-                                 tags=("pedidos", f"pedido_{pid}"))
+        label = self.create_text(
+            x, y - 20, text=pid,
+            font=("Inter", 8, "bold"),
+            fill="#6d28d9",
+            tags=("pedidos", f"pedido_{pid}")
+        )
 
         self.pedidos_desenhados[pid] = (marker, label)
 
@@ -290,14 +329,17 @@ class InterfaceMapa(tk.Canvas):
             self.desenhar_pedido(p)
 
     def atualizar_veiculos(self, veiculos: dict, anim_ms: int = 450, frames: int = 18):
+        # Remove veículos que já não existem
         ids_atuais = set(v.id_veiculo for v in veiculos.values())
         ids_existentes = set(self.vehicle_items.keys())
 
         for vid in ids_existentes - ids_atuais:
+            # remove linha destino
             line_id = self.dest_lines.pop(vid, None)
             if line_id:
                 self.delete(line_id)
 
+            # remove itens veículo
             shadow_id, rect_id, label_id = self.vehicle_items.pop(vid)
             self.delete(shadow_id)
             self.delete(rect_id)
@@ -312,49 +354,58 @@ class InterfaceMapa(tk.Canvas):
                 except tk.TclError:
                     pass
 
-            keys = [k for k in list(self.trail_lines.keys()) if k[0] == vid]
-            for k in keys:
-                self._clear_trail(k)
-            self.last_pid_by_vehicle.pop(vid, None)
+            # remove trails
+            self._clear_all_trails_for_vehicle(vid)
 
+        # Atualiza / cria veículos existentes
         for v in veiculos.values():
             vid = v.id_veiculo
             target_x, target_y = self._pos(v.posicao)
 
             # Cor por tipo/estado
-            cor = "#0ea5e9" if v.tipo_veiculo() == "eletrico" else "#f59e0b"
+            if v.tipo_veiculo() == "eletrico":
+                cor = "#0ea5e9"
+            else:
+                cor = "#f59e0b"
+
             if v.estado.value in ("recarregando", "reabastecendo"):
                 cor = "#fbbf24"
             elif v.estado.value == "a_servico":
                 cor = "#10b981"
 
+            # ------------------- RASTO DO PEDIDO (exato pela rota) -------------------
             pid = getattr(v, "id_pedido_atual", None)
+            estado = v.estado.value
             last_pid = self.last_pid_by_vehicle.get(vid)
 
-            # se terminou pedido: apagar rasto do pedido anterior
+            # terminou pedido -> apaga rasto anterior
             if last_pid and not pid:
                 self._clear_trail(self._trail_key(vid, last_pid))
                 self.last_pid_by_vehicle[vid] = None
 
-            # se mudou de pedido: apagar rasto do pedido anterior
+            # mudou de pedido -> apaga rasto anterior
             if last_pid and pid and pid != last_pid:
                 self._clear_trail(self._trail_key(vid, last_pid))
 
             self.last_pid_by_vehicle[vid] = pid
 
-            # com pedido e em estados relevantes
-            estado = v.estado.value
-            trail_active = bool(pid) and (estado in ("a_servico", "deslocando"))
+            # mostrar sempre que é suposto: pedido ativo e estados relevantes
+            trail_active = bool(pid) and (estado in ("deslocando", "a_servico"))
 
-            if trail_active:
+            if trail_active and getattr(v, "rota", None) and len(v.rota) >= 2:
+                idx = max(0, min(getattr(v, "indice_rota", 0) or 0, len(v.rota) - 1))
+                percorrida = v.rota[: idx + 1]
+
                 key = self._trail_key(vid, pid)
-                self._append_trail_node(key, v.posicao)
-                self._render_trail(key, self.obter_cor_pedido(pid))
+                cor_rota = self.obter_cor_pedido(pid)
+                self._render_trail_from_nodes(key, percorrida, cor_rota)
+            # ------------------------------------------------------------------------
 
-            # criação do veículo (se necessário)
+            # Se ainda não existe, cria no target (sem animação inicial)
             if vid not in self.vehicle_items:
                 x, y = target_x, target_y
 
+                # linha destino (se houver)
                 destino = v.rota[-1] if getattr(v, "rota", None) else None
                 if destino and destino in self.grafo.nos and destino != v.posicao:
                     dx, dy = self._pos(destino)
@@ -389,7 +440,7 @@ class InterfaceMapa(tk.Canvas):
             shadow_id, rect_id, label_id = self.vehicle_items[vid]
             self.itemconfig(rect_id, fill=cor)
 
-            # Linha destino
+            # Atualiza / remove a linha destino (sem apagar tudo)
             destino = v.rota[-1] if getattr(v, "rota", None) else None
             cur_x, cur_y = self.vehicle_pixel.get(vid, (target_x, target_y))
 
@@ -411,12 +462,15 @@ class InterfaceMapa(tk.Canvas):
                 if line_id:
                     self.delete(line_id)
 
-            # Animação
+            # Animar do pixel atual -> pixel alvo
             start_x, start_y = self.vehicle_pixel.get(vid, (target_x, target_y))
+
+            # Se praticamente igual, só “snap”
             if abs(start_x - target_x) < 1 and abs(start_y - target_y) < 1:
                 self._colocar_veiculo_em(vid, target_x, target_y)
                 continue
 
+            # Cancela animação anterior se existir
             job = self.anim_job.get(vid)
             if job:
                 try:
@@ -429,19 +483,24 @@ class InterfaceMapa(tk.Canvas):
     def _colocar_veiculo_em(self, vid: str, x: float, y: float):
         shadow_id, rect_id, label_id = self.vehicle_items[vid]
 
-        self.coords(shadow_id,
-                    x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
-                    x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2)
+        self.coords(
+            shadow_id,
+            x - VEHICLE_SIZE + 2, y - VEHICLE_SIZE + 2,
+            x + VEHICLE_SIZE + 2, y + VEHICLE_SIZE + 2
+        )
 
-        self.coords(rect_id,
-                    x - VEHICLE_SIZE, y - VEHICLE_SIZE,
-                    x + VEHICLE_SIZE, y + VEHICLE_SIZE)
+        self.coords(
+            rect_id,
+            x - VEHICLE_SIZE, y - VEHICLE_SIZE,
+            x + VEHICLE_SIZE, y + VEHICLE_SIZE
+        )
 
         self.coords(label_id, x, y + VEHICLE_SIZE + 12)
         self.vehicle_pixel[vid] = (x, y)
 
     def _animar_veiculo(self, vid: str, sx: float, sy: float, tx: float, ty: float,
                         anim_ms: int, frames: int):
+        # Interpolação linear
         step_ms = max(10, anim_ms // max(1, frames))
         dx = (tx - sx) / frames
         dy = (ty - sy) / frames
@@ -457,12 +516,14 @@ class InterfaceMapa(tk.Canvas):
 
         frame(0, sx, sy)
 
+    # Mostra tooltip apenas ao passar o rato sobre elemento
     def on_mouse_move(self, event):
         x, y = event.x, event.y
 
         self.delete("tooltip")
         self.tooltip = None
 
+        # Verifica hover sobre rotas de pedidos
         for pedido_id, info_rota in self.rotas_pedidos.items():
             coords = info_rota['coords']
             for i in range(len(coords) - 1):
@@ -472,6 +533,7 @@ class InterfaceMapa(tk.Canvas):
                     self.mostrar_tooltip_rota(x, y, pedido_id, info_rota)
                     return
 
+        # Verifica veículos
         if hasattr(self, 'veiculos_ref'):
             for v in self.veiculos_ref.values():
                 vx, vy = self._pos(v.posicao)
@@ -479,6 +541,7 @@ class InterfaceMapa(tk.Canvas):
                     self.mostrar_tooltip_veiculo(x, y, v)
                     return
 
+        # Verifica nós
         for no_id, no in self.grafo.nos.items():
             nx, ny = self._pos(no_id)
             if ((x - nx) ** 2 + (y - ny) ** 2) ** 0.5 <= NODE_RADIUS + 2:
@@ -500,6 +563,7 @@ class InterfaceMapa(tk.Canvas):
         veiculo = info_rota['veiculo']
         cor = info_rota['cor']
 
+        # Encontra o pedido
         pedido = None
         if hasattr(self, 'pedidos_ref'):
             for p in self.pedidos_ref:
@@ -527,17 +591,18 @@ class InterfaceMapa(tk.Canvas):
                          font=("Arial", 9, "bold"),
                          fill="#ffffff", tags="tooltip")
 
+        # Informações
         if pedido:
             info_lines = [
                 f"Veículo: {veiculo.id_veiculo}",
                 f"Origem: {pedido.posicao_inicial.replace('_', ' ')}",
                 f"Destino: {pedido.posicao_destino.replace('_', ' ')}",
-                f"Passageiros: {pedido.passageiros}",
+                "Passageiros: " + str(pedido.passageiros),
             ]
         else:
             info_lines = [
                 f"Veículo: {veiculo.id_veiculo}",
-                f"Em deslocação...",
+                "Em deslocação...",
             ]
 
         for i, linha in enumerate(info_lines):
@@ -600,7 +665,7 @@ class InterfaceMapa(tk.Canvas):
         estados_pt = {
             "disponivel": "Disponível",
             "a_servico": "Com Passageiros",
-            "recarregando": "A recarregar",
+            "recarregando": "A reccarregar",
             "reabastecendo": "A reabastecer",
             "deslocando": "Em Movimento",
             "indisponivel": "Indisponível"
@@ -616,13 +681,22 @@ class InterfaceMapa(tk.Canvas):
 
         self.create_rectangle(tx + 3, ty + 3, tx + width + 3, ty + height + 3,
                               fill="#e5e7eb", outline="", tags="tooltip")
-        self.create_rectangle(tx, ty, tx + width, ty + height,
-                              fill="#ffffff", outline="#d1d5db", width=2, tags="tooltip")
 
-        self.create_text(tx + width // 2, ty + 15, text=f"{veiculo.id_veiculo}",
-                         font=("Arial", 10, "bold"), fill="#111827", tags="tooltip")
-        self.create_text(tx + width // 2, ty + 35, text=tipo,
-                         font=("Arial", 9), fill="#4b5563", tags="tooltip")
+        self.create_rectangle(tx, ty, tx + width, ty + height,
+                              fill="#ffffff", outline="#d1d5db", width=2,
+                              tags="tooltip")
+
+        self.create_text(tx + width // 2, ty + 15,
+                         text=f"{veiculo.id_veiculo}",
+                         font=("Arial", 10, "bold"),
+                         fill="#111827",
+                         tags="tooltip")
+
+        self.create_text(tx + width // 2, ty + 35,
+                         text=tipo,
+                         font=("Arial", 9),
+                         fill="#4b5563",
+                         tags="tooltip")
 
         barra_x = tx + padding
         barra_y = ty + 50
@@ -637,14 +711,20 @@ class InterfaceMapa(tk.Canvas):
                               fill=cor_bateria, outline="", tags="tooltip")
 
         self.create_text(tx + width // 2, barra_y + barra_height // 2,
-                         text=f"{autonomia_pct}%", font=("Arial", 7, "bold"),
-                         fill="#ffffff", tags="tooltip")
+                         text=f"{autonomia_pct}%",
+                         font=("Arial", 7, "bold"),
+                         fill="#ffffff",
+                         tags="tooltip")
 
-        self.create_text(tx + width // 2, ty + 75, text=estado_texto,
-                         font=("Arial", 8), fill="#6b7280", tags="tooltip")
+        self.create_text(tx + width // 2, ty + 75,
+                         text=estado_texto,
+                         font=("Arial", 8),
+                         fill="#6b7280",
+                         tags="tooltip")
 
         self.tag_raise("tooltip")
 
+    # Remove tooltip
     def on_mouse_leave(self, event):
         if self.tooltip:
             self.delete("tooltip")
