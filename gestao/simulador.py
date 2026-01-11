@@ -59,7 +59,8 @@ class Simulador:
                 instante_pedido=random.randint(0, self.duracao_total - 1),
                 pref_ambiental=random.choice(["eletrico", "combustao"]),
                 prioridade=random.randint(0, 3),
-                estado=EstadoPedido.PENDENTE
+                estado=EstadoPedido.PENDENTE,
+                veiculo_atribuido=None,  # <-- FIX: obrigatório no __init__ do Pedido
             )
             self.agendar_pedido(pedido)
 
@@ -102,7 +103,6 @@ class Simulador:
         print("Resultados Finais:")
         for chave, valor in metricas.items():
             print(f"  {chave}: {valor}")
-
 
     # ==========================================================
     # Processamento interno
