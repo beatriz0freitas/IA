@@ -59,7 +59,8 @@ class Simulador:
                 instante_pedido=random.randint(0, self.duracao_total - 1),
                 pref_ambiental=random.choice(["eletrico", "combustao"]),
                 prioridade=random.randint(0, 3),
-                estado=EstadoPedido.PENDENTE
+                estado=EstadoPedido.PENDENTE,
+                veiculo_atribuido=None,  # <-- FIX: obrigatório no __init__ do Pedido
             )
             self.agendar_pedido(pedido)
 
@@ -98,11 +99,8 @@ class Simulador:
         print("Simulação terminada.\n")
         print("="*60)
 
-        metricas = self.gestor.metricas.calcular_metricas()
-        print("Resultados Finais:")
-        for chave, valor in metricas.items():
-            print(f"  {chave}: {valor}")
-
+        metricas = self.gestor.metricas.calcular_metricas_extensas(self.gestor.veiculos)
+        print(self.gestor.metricas.formatar_relatorio(metricas))
 
     # ==========================================================
     # Processamento interno
@@ -188,6 +186,7 @@ class Simulador:
                     veiculo.rota = rota
                     veiculo.indice_rota = 0
                     veiculo.estado = EstadoVeiculo.EM_DESLOCACAO
+                    veiculo.id_pedido_atual = pedidos_agrupados[0].id_pedido
 
                     # Marca pedidos como atribuídos
                     for pedido in pedidos_agrupados:
