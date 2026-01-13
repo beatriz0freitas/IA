@@ -38,12 +38,12 @@ test:
 .PHONY: compare-algoritmos
 compare-algoritmos:
 	@echo "Comparando algoritmos de procura..."
-	python3 testes/algoritmos/testar_algoritmos.py
+	python3 -m unittest testes/algoritmos/test_comparacao_algoritmos.py
 
 .PHONY: compare-strategies
 compare-strategies:
 	@echo "Comparando estratégias de seleção..."
-	python3 testes/integracao/test_estrategias_selecao.py
+	python3 -m unittest testes/integracao/test_estrategias_selecao.py
 
 .PHONY: diagnostico
 diagnostico:
