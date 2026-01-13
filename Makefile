@@ -43,12 +43,12 @@ compare-algoritmos:
 .PHONY: comparar
 comparar:
 	@echo "Comparando algoritmos de procura..."
-	python3 -m gestao/comparador_algoritmos.py
+	python3 run_comparador.py
 
 .PHONY: compare-strategies
 compare-strategies:
 	@echo "Comparando estratégias de seleção..."
-	python3 testes/integracao/test_estrategias_selecao.py
+	python3 -m unittest testes/integracao/test_estrategias_selecao.py
 
 .PHONY: diagnostico
 diagnostico:

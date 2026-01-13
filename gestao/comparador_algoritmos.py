@@ -14,7 +14,6 @@ import statistics
 from modelo.grafo import Grafo
 from modelo.veiculos import Veiculo
 
-#todo: limpar aspetos menos necessários
 
 @dataclass
 class ResultadoAlgoritmo:
