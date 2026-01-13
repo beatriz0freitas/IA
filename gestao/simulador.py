@@ -64,8 +64,14 @@ class Simulador:
             )
             self.agendar_pedido(pedido)
 
-    # Avança a simulação minuto a minuto - introduz novos pedidos agendados; tenta atribuir pedidos pendentes a veículos; executa viagens e recargas.
     def executar(self):
+        """
+        Executa a simulação ao longo do tempo definido.
+        Avança a simulação minuto a minuto
+        - introduz novos pedidos agendados
+        - tenta atribuir pedidos pendentes a veículos
+        - executa viagens e recargas.
+        """
         print(f"Início da simulação (0 → {self.duracao_total} min)\n")
 
         while self.tempo_atual <= self.duracao_total:
@@ -107,6 +113,9 @@ class Simulador:
     # ==========================================================
     
     def processar_pedidos_novos(self):
+        """
+        Introduz novos pedidos agendados na fila no tempo atual.
+        """
         while self.fila_pedidos and self.fila_pedidos[0][0] <= self.tempo_atual:
             _, _, _, pedido = heapq.heappop(self.fila_pedidos)
             self.gestor.adicionar_pedido(pedido)
@@ -119,6 +128,10 @@ class Simulador:
 
 
     def atribuir_pedidos_pendentes(self):
+        """
+        Tenta atribuir pedidos pendentes a veículos disponíveis por prioridade. 
+        Aplica lógica de ride sharing se ativo.
+        """
         pendentes = [p for p in self.gestor.pedidos_pendentes
                      if p.estado == EstadoPedido.PENDENTE]
 
@@ -232,7 +245,10 @@ class Simulador:
 
 
     def mover_veiculos(self):
-        """Move apenas veículos que têm rota ativa."""
+        """
+        Move apenas veículos que têm rota ativa. 
+        Atualiza métricas de distância e tempo.
+        """
         veiculos_em_movimento = [
             v for v in self.gestor.veiculos.values() 
             if v.rota and v.indice_rota < len(v.rota) - 1
@@ -260,9 +276,11 @@ class Simulador:
                 self.processar_chegada_destino(v)
 
 
-    # Processa chegada de veículo ao destino da rota
     def processar_chegada_destino(self, veiculo: Veiculo):
-
+        """
+        Processa eventos na chegada ao destino da rota. 
+        Pode envolver recarga automática ou mudança de estado do veículo.
+        """
         no = self.gestor.grafo.nos[veiculo.posicao]
         tipo_no = no.tipo
 
@@ -300,8 +318,10 @@ class Simulador:
                     f"[t={self.tempo_atual}] Veículo {veiculo.id_veiculo} "f"chegou a {veiculo.posicao}")
 
 
-    # Verifica se pedidos foram concluídos (veículo chegou ao destino final)
     def verificar_conclusao_pedidos(self):
+        """
+        Verifica se pedidos em execução foram concluídos.
+        """
 
         for pedido in list(self.gestor.pedidos_pendentes):
             if pedido.estado not in (EstadoPedido.ATRIBUIDO, EstadoPedido.EM_EXECUCAO):
@@ -338,8 +358,10 @@ class Simulador:
                         self.interface.registar_evento(
                             f"[t={self.tempo_atual}] Pedido {pedido.id_pedido} "f"concluído! (tempo: {tempo_resposta} min)")
 
-
     def verificar_recargas(self):
+        """
+        Verifica veículos disponíveis que precisam recarregar.
+        """
         for v in self.gestor.veiculos.values():
             if v.estado == EstadoVeiculo.DISPONIVEL:
                 self.gestor.verificar_necessidade_recarga( v, self.tempo_atual, threshold=0.25 )
