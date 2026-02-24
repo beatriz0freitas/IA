@@ -6,8 +6,6 @@ Sistema de simulação e gestão de uma frota inteligente, **TaxiGreen**, implem
 
 ## Como Executar
 
-### Executar a simulação principal
-
 Abre a interface gráfica com janelas de configuração:
 
 ```bash
@@ -16,12 +14,12 @@ make run
 
 ### Executar testes
 
-#### Todos os testes
+##### Todos os testes
 ```bash
 make test
 ```
 
-#### Testes específicos
+##### Testes específicos
 ```bash
 make test-transito        # Sistema de trânsito dinâmico
 make test-falhas          # Sistema de gestão de falhas
@@ -45,7 +43,7 @@ make comparar
 make compare-strategies
 ```
 
-### 5. Diagnóstico
+### Diagnóstico
 
 Executa diagnóstico detalhado do sistema de trânsito dinâmico.
 
@@ -55,34 +53,9 @@ make diagnostico
 
 ---
 
-## Algoritmos Implementados
-
-### Procura não informada
-- **BFS** (Breadth-First Search)
-- **DFS** (Depth-First Search)
-- **UCS** (Uniform Cost Search)
-
-### Procura informada
-- **A\*** (A* Search)
-- **Greedy** (Greedy Best-First Search)
-
----
-
-## Estratégias de Seleção de Veículos
-
-- **Menor Distância**: Seleciona o veículo mais próximo
-- **Custo Composto**: Considera distância, autonomia e custos
-- **Dead Mileage**: Minimiza distância sem passageiro
-- **Equilibrada**: Equilibra carga entre veículos
-- **Priorizar Elétricos**: Favorece veículos elétricos
-
----
-
 ## Contribuidores
 
-| ID | Nome |
-|---|---|
-| a106853 | Ana Beatriz Ribeiro Freitas |
-| a107365 | Beatriz Martins Miranda |
-| a106877 | José Miguel Fernandes Cação |
-| a106793 | Lucas André Dias Fernandes |
+a106853 | Ana Beatriz Ribeiro Freitas
+a107365 | Beatriz Martins Miranda
+a106877 | José Miguel Fernandes Cação
+a106793 | Lucas André Dias Fernandes
