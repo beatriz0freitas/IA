@@ -1,44 +1,53 @@
-# TaxiGreen — Sistema de Gestão de Frota
+# IA - TaxiGreen: Sistema de Gestão Inteligente de Frota
 
-Projeto desenvolvido no âmbito da unidade curricular **Inteligência Artificial** (3º ano, 1º semestre 2024/2025) da **Universidade do Minho**. Simulação e gestão de uma frota (TaxiGreen), com componentes de **procura/planeamento**, **trânsito dinâmico**, **ride-sharing**, **gestão de falhas** e uma **suite de testes** organizada. Inclui um **Makefile** com atalhos para executar simulações, diagnósticos e testes.
+Sistema de simulação e gestão de uma frota inteligente, **TaxiGreen**, implementando algoritmos de procura informada e não informada para otimizar a alocação de veículos.
 
-Desenvolvimento de algoritmos de procura informada e não informada para otimizar a gestão de uma frota de táxis mista (veículos elétricos e a combustão), maximizando a eficiência operacional, reduzindo custos energéticos e cumprindo critérios ambientais. O sistema procura equilibrar a alocação de veículos com diferentes características — **autonomia, capacidade e custos operacionais** — adaptando-se a condições dinâmicas como **procura variável, trânsito e recarga de veículos**. A cidade é representada como um **grafo**, e são testadas várias estratégias de procura para determinar a mais eficiente.
+---
 
-## Como executar
+## Como Executar
 
-Para ver os comandos disponíveis:
+### Executar a simulação principal
 
-```bash
-make help
-```
-
-Comandos principais:
-
-- Executar a simulação principal:
+Abre a interface gráfica com janelas de configuração:
 
 ```bash
 make run
 ```
 
-- Executar todos os testes (runner do projeto):
+### Executar testes
 
+#### Todos os testes
 ```bash
 make test
 ```
 
-- Comparar algoritmos de procura:
+#### Testes específicos
+```bash
+make test-transito        # Sistema de trânsito dinâmico
+make test-falhas          # Sistema de gestão de falhas
+make test-ride-sharing    # Sistema de ride-sharing
+```
 
+### Análise comparativa
+
+#### Comparar algoritmos de procura
 ```bash
 make compare-algoritmos
 ```
 
-- Comparar estratégias de seleção:
+#### Executar comparador completo
+```bash
+make comparar
+```
 
+#### Comparar estratégias de seleção
 ```bash
 make compare-strategies
 ```
 
-- Executar diagnóstico do trânsito dinâmico:
+### 5. Diagnóstico
+
+Executa diagnóstico detalhado do sistema de trânsito dinâmico.
 
 ```bash
 make diagnostico
@@ -46,12 +55,34 @@ make diagnostico
 
 ---
 
-### Contribuidores
+## Algoritmos Implementados
 
-a106853 | Ana Beatriz Ribeiro Freitas
+### Procura não informada
+- **BFS** (Breadth-First Search)
+- **DFS** (Depth-First Search)
+- **UCS** (Uniform Cost Search)
 
-a107365 | Beatriz Martins Miranda
+### Procura informada
+- **A\*** (A* Search)
+- **Greedy** (Greedy Best-First Search)
 
-a106877 | José Miguel Fernandes Cação
+---
 
-a106793 | Lucas André Dias Fernandes
+## Estratégias de Seleção de Veículos
+
+- **Menor Distância**: Seleciona o veículo mais próximo
+- **Custo Composto**: Considera distância, autonomia e custos
+- **Dead Mileage**: Minimiza distância sem passageiro
+- **Equilibrada**: Equilibra carga entre veículos
+- **Priorizar Elétricos**: Favorece veículos elétricos
+
+---
+
+## Contribuidores
+
+| ID | Nome |
+|---|---|
+| a106853 | Ana Beatriz Ribeiro Freitas |
+| a107365 | Beatriz Martins Miranda |
+| a106877 | José Miguel Fernandes Cação |
+| a106793 | Lucas André Dias Fernandes |

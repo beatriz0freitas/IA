@@ -33,7 +33,7 @@ run:
 .PHONY: test
 test:
 	@echo " Executando TODOS os testes..."
-	python3 executar_testes.py
+	python3 scripts/executar_testes.py
 
 .PHONY: compare-algoritmos
 compare-algoritmos:
@@ -43,7 +43,7 @@ compare-algoritmos:
 .PHONY: comparar
 comparar:
 	@echo "Comparando algoritmos de procura..."
-	python3 run_comparador.py
+	python3 scripts/run_comparador.py
 
 .PHONY: compare-strategies
 compare-strategies:
@@ -53,7 +53,7 @@ compare-strategies:
 .PHONY: diagnostico
 diagnostico:
 	@echo "Diagnóstico do sistema de trânsito..."
-	python3 diagnostico_transito.py
+	python3 scripts/diagnostico_transito.py
 
 .PHONY: test-transito
 test-transito:
